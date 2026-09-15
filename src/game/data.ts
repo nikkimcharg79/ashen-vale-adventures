@@ -1,18 +1,6 @@
-export type ItemCategory = "Weapons" | "Armor" | "Consumables" | "Materials" | "Quest";
-export type Item = {
-  id: string;
-  name: string;
-  category: ItemCategory;
-  icon: string;
-  rarity: "common" | "uncommon" | "rare" | "epic";
-  count: number;
-  attack?: number;
-  defense?: number;
-  crit?: number;
-  heal?: number;
-  mana?: number;
-  description: string;
-};
+import type { EnemyTemplate, Item, ItemCategory } from "./types";
+
+export type { Item, ItemCategory };
 
 export type Skill = {
   id: string;
@@ -35,6 +23,7 @@ export const initialItems: Item[] = [
     count: 1,
     attack: 18,
     crit: 5,
+    equipSlot: "weapon",
     description: "A silver blade tempered beneath the hollow moon.",
   },
   {
@@ -46,6 +35,7 @@ export const initialItems: Item[] = [
     count: 1,
     attack: 9,
     crit: 9,
+    equipSlot: "weapon",
     description: "A quick, practical blade favored by ridge bandits.",
   },
   {
@@ -57,6 +47,7 @@ export const initialItems: Item[] = [
     count: 1,
     attack: 28,
     crit: 3,
+    equipSlot: "weapon",
     description: "Embers pulse beneath its blackened edge.",
   },
   {
@@ -67,6 +58,7 @@ export const initialItems: Item[] = [
     rarity: "uncommon",
     count: 1,
     defense: 12,
+    equipSlot: "armor",
     description: "Layered leather and silk for the long road.",
   },
   {
@@ -78,6 +70,7 @@ export const initialItems: Item[] = [
     count: 1,
     defense: 7,
     crit: 2,
+    equipSlot: "boots",
     description: "Soft-stepping boots touched by silver light.",
   },
   {
@@ -181,7 +174,7 @@ export const skills: Skill[] = [
   },
 ];
 
-export const enemies = [
+export const enemies: EnemyTemplate[] = [
   {
     name: "Ridge Bandit",
     maxHp: 210,
@@ -206,4 +199,4 @@ export const enemies = [
     icon: "♜",
     flavor: "Ancient armor awakens with an empty blue flame.",
   },
-] as const;
+];
