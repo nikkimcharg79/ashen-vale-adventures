@@ -11,7 +11,15 @@ import nikkiAshen from "@/assets/nikki-ashen.png";
 import { enemies, initialItems, skills, type Item } from "./data";
 
 type Log = { channel: "System" | "World" | "Combat"; text: string };
-type Enemy = (typeof enemies)[number] & { hp: number };
+type Enemy = {
+  name: string;
+  maxHp: number;
+  attack: number;
+  xp: number;
+  icon: string;
+  flavor: string;
+  hp: number;
+};
 
 const characterImages: Record<string, string> = {
   moonsteel: nikkiMoonsteel,
@@ -67,7 +75,7 @@ export function GameClient() {
   };
 
   const startCombat = (index?: number) => {
-    const base = enemies[index ?? Math.floor(Math.random() * enemies.length)];
+    const base = enemies[index ?? Math.floor(Math.random() * enemies.length)] ?? enemies[0];
     setEnemy({ ...base, hp: base.maxHp });
     setCooldowns({});
     setCombatResult(null);
