@@ -3,11 +3,9 @@ import {
   Backpack,
   ChevronRight,
   Compass,
-  Crosshair,
   Gem,
   Hammer,
   Map,
-  Menu,
   MessageSquare,
   Navigation,
   ScrollText,
@@ -21,18 +19,9 @@ import moonlitRidge from "@/assets/moonlit-ridge.jpg";
 import nikkiMoonsteel from "@/assets/nikki-moonsteel.png";
 import nikkiDagger from "@/assets/nikki-dagger.png";
 import nikkiAshen from "@/assets/nikki-ashen.png";
-import { enemies, initialItems, skills, type Item } from "./data";
-
-type Log = { channel: "System" | "World" | "Combat"; text: string };
-type Enemy = {
-  name: string;
-  maxHp: number;
-  attack: number;
-  xp: number;
-  icon: string;
-  flavor: string;
-  hp: number;
-};
+import { enemies, skills } from "./data";
+import type { Item } from "./types";
+import { useGameState } from "./state";
 
 const characterImages: Record<string, string> = {
   moonsteel: nikkiMoonsteel,
@@ -48,58 +37,33 @@ const rarityClass: Record<Item["rarity"], string> = {
 };
 
 export function GameClient() {
-  const [items, setItems] = useState(initialItems);
+  const { state, actions, bagCount, equippedItem } = useGameState();
+  const { character, equipment, inventory, currencies, activeLocation, activeQuest, combat, logs } =
+    state;
   const [selected, setSelected] = useState<Item | null>(null);
   const [category, setCategory] = useState("All");
-  const [equippedWeapon, setEquippedWeapon] = useState("moonsteel");
-  const [equippedArmor, setEquippedArmor] = useState("wanderer");
-  const [hp, setHp] = useState(428);
-  const [mp, setMp] = useState(163);
-  const [xp, setXp] = useState(4320);
-  const [enemy, setEnemy] = useState<Enemy | null>(null);
-  const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
-  const [logs, setLogs] = useState<Log[]>([
-    { channel: "System", text: "You have entered Moonlit Ridge." },
-    { channel: "System", text: "Gained 120 experience." },
-    { channel: "World", text: "Kaei: LFG temple city run" },
-  ]);
   const [chatTab, setChatTab] = useState("All");
   const [chatInput, setChatInput] = useState("");
   const [overlay, setOverlay] = useState<"character" | "adventure" | null>(null);
-  const [notice, setNotice] = useState("A narrow pass overlooks the distant temple city.");
-  const [combatResult, setCombatResult] = useState<"victory" | "defeat" | null>(null);
 
-  const weapon = items.find((item) => item.id === equippedWeapon);
-  const armor = items.find((item) => item.id === equippedArmor);
-  const attack = 34 + (weapon?.attack ?? 0);
-  const defense = 18 + (armor?.defense ?? 0);
-  const crit = 8 + (weapon?.crit ?? 0) + (armor?.crit ?? 0);
-  const image = characterImages[equippedWeapon] ?? nikkiMoonsteel;
+  const weapon = equippedItem("weapon");
+  const stats = character.calculatedStats;
+  const { attack, defense, crit, maxHp, maxMp } = stats;
+  const { hp, mp, xp, maxXp } = character;
+  const enemy = combat.enemy;
+  const combatResult = combat.result;
+  const cooldowns = combat.cooldowns;
+  const image = characterImages[equipment.weapon ?? ""] ?? nikkiMoonsteel;
   const visibleItems =
-    category === "All" ? items : items.filter((item) => item.category === category);
+    category === "All" ? inventory : inventory.filter((item) => item.category === category);
   const visibleLogs = chatTab === "All" ? logs : logs.filter((log) => log.channel === chatTab);
-
-  const addLog = (channel: Log["channel"], text: string) =>
-    setLogs((current) => [...current.slice(-30), { channel, text }]);
-
-  const addItem = (incoming: Item) => {
-    setItems((current) => {
-      const found = current.find((item) => item.id === incoming.id);
-      return found
-        ? current.map((item) =>
-            item.id === incoming.id ? { ...item, count: item.count + incoming.count } : item,
-          )
-        : [...current, incoming];
-    });
-  };
+  const xpPercent = Math.min(100, Math.floor((xp / maxXp) * 100));
 
   const startCombat = (index?: number) => {
-    const base = enemies[index ?? Math.floor(Math.random() * enemies.length)] ?? enemies[0];
-    setEnemy({ ...base, hp: base.maxHp });
-    setCooldowns({});
-    setCombatResult(null);
-    setNotice(base.flavor);
-    addLog("Combat", `${base.name} blocks your path!`);
+    const base = enemies[index ?? Math.floor(Math.random() * enemies.length)] ?? enemies[0]!;
+    actions.startCombat(base);
+    actions.setNotice(base.flavor);
+    actions.addLog("Combat", `${base.name} blocks your path!`);
   };
 
   const gather = () => {
@@ -128,9 +92,9 @@ export function GameClient() {
     ] as const;
     const resource = resources[Math.floor(Math.random() * resources.length)] ?? resources[0];
     const count = 1 + Math.floor(Math.random() * 3);
-    addItem({ ...resource, category: "Materials", count });
-    setNotice(`You gathered ${count} × ${resource.name} beside the moonlit stream.`);
-    addLog("System", `Obtained ${resource.name} ×${count}.`);
+    actions.addItem({ ...resource, category: "Materials", count });
+    actions.setNotice(`You gathered ${count} × ${resource.name} beside the moonlit stream.`);
+    actions.addLog("System", `Obtained ${resource.name} ×${count}.`);
   };
 
   const explore = () => {
@@ -138,8 +102,9 @@ export function GameClient() {
     if (roll < 0.45) startCombat();
     else if (roll < 0.78) gather();
     else {
-      setNotice("Behind a weathered shrine, you discover a moon-marked cache: 85 gold.");
-      addLog("System", "Discovered a hidden shrine cache. Gained 85 gold.");
+      actions.modifyCurrencies(85, 0);
+      actions.setNotice("Behind a weathered shrine, you discover a moon-marked cache: 85 gold.");
+      actions.addLog("System", "Discovered a hidden shrine cache. Gained 85 gold.");
     }
   };
 
@@ -152,96 +117,79 @@ export function GameClient() {
       attack * skill.multiplier * (0.84 + Math.random() * 0.25) * (isCritical ? 1.65 : 1),
     );
     const nextHp = Math.max(0, enemy.hp - damage);
-    setMp((value) => value - skill.mana);
-    setCooldowns((current) => {
-      const next: Record<string, number> = {};
-      for (const [key, value] of Object.entries(current)) next[key] = Math.max(0, value - 1);
-      if (skill.cooldown) next[skill.id] = skill.cooldown;
-      return next;
-    });
-    addLog("Combat", `${skill.name} deals ${damage}${isCritical ? " critical" : ""} damage.`);
+    actions.spendSkill(skill.id, skill.mana, skill.cooldown);
+    actions.damageEnemy(damage);
+    actions.addLog("Combat", `${skill.name} deals ${damage}${isCritical ? " critical" : ""} damage.`);
     if (nextHp <= 0) {
-      setEnemy({ ...enemy, hp: 0 });
-      setCombatResult("victory");
-      setXp((value) => value + enemy.xp);
-      const loot =
+      const loot: Item =
         enemy.name === "Ridge Bandit"
           ? {
               id: "dagger",
               name: "Iron Dagger",
-              category: "Weapons" as const,
+              category: "Weapons",
               icon: "🗡",
-              rarity: "common" as const,
+              rarity: "common",
               count: 1,
               attack: 9,
               crit: 9,
+              equipSlot: "weapon",
               description: "A quick, practical blade favored by ridge bandits.",
             }
           : {
               id: "silverleaf-potion",
               name: "Silverleaf Potion",
-              category: "Consumables" as const,
+              category: "Consumables",
               icon: "✦",
-              rarity: "uncommon" as const,
+              rarity: "uncommon",
               count: 1,
               mana: 75,
               description: "Restores 75 mana.",
             };
-      addItem(loot);
-      addLog("System", `Victory! Gained ${enemy.xp} XP and ${loot.name}.`);
+      actions.addItem(loot);
+      actions.modifyCurrencies(40, 0);
+      actions.addLog("System", `Victory! Gained ${enemy.xp} XP and ${loot.name}.`);
       return;
     }
-    setEnemy({ ...enemy, hp: nextHp });
     window.setTimeout(() => {
       const incoming = Math.max(
         5,
         Math.round(enemy.attack * (0.85 + Math.random() * 0.3) - defense * 0.35),
       );
-      setHp((value) => {
-        const next = Math.max(0, value - incoming);
-        if (next === 0) setCombatResult("defeat");
-        return next;
-      });
-      addLog("Combat", `${enemy.name} strikes for ${incoming} damage.`);
+      actions.damagePlayer(incoming);
+      actions.addLog("Combat", `${enemy.name} strikes for ${incoming} damage.`);
     }, 350);
   };
 
   const interactItem = (item: Item) => {
-    if (item.category === "Weapons") {
-      setEquippedWeapon(item.id);
-      addLog("System", `Equipped ${item.name}. Attack is now ${34 + (item.attack ?? 0)}.`);
-    } else if (item.category === "Armor") {
-      setEquippedArmor(item.id);
-      addLog("System", `Equipped ${item.name}.`);
+    if (item.equipSlot) {
+      actions.equipItem(item.id);
+      actions.addLog("System", `Equipped ${item.name}.`);
     } else if (item.category === "Consumables" && item.count > 0) {
-      setHp((value) => Math.min(428, value + (item.heal ?? 0)));
-      setMp((value) => Math.min(163, value + (item.mana ?? 0)));
-      setItems((current) =>
-        current
-          .map((entry) => (entry.id === item.id ? { ...entry, count: entry.count - 1 } : entry))
-          .filter((entry) => entry.count > 0),
-      );
+      actions.useItem(item.id);
       setSelected(null);
-      addLog("System", `Used ${item.name}.`);
+      actions.addLog("System", `Used ${item.name}.`);
     }
   };
 
   const sendChat = () => {
     const text = chatInput.trim();
     if (!text) return;
-    addLog("World", `Nikki: ${text}`);
+    actions.addLog("World", `Nikki: ${text}`);
     setChatInput("");
   };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.target as HTMLElement)?.tagName === "INPUT") return;
-      const skill = skills.find((entry) => entry.key.toLowerCase() === event.key.toLowerCase());
+      const key = event.key.toLowerCase();
+      const skill = skills.find((entry) => entry.key.toLowerCase() === key);
       if (skill) activateSkill(skill.id);
-      if (event.key.toLowerCase() === "w") {
-        const potion = items.find((item) => item.id === "health-potion");
+      if (key === "w") {
+        const potion = inventory.find((item) => item.id === "health-potion");
         if (potion) interactItem(potion);
       }
+      if (key === "e") gather();
+      if (key === "r") explore();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -259,34 +207,36 @@ export function GameClient() {
     <aside className="character-panel game-panel">
       <section className="player-card">
         <div className="portrait">
-          <img src={image} alt="Nikki portrait" />
+          <img src={image} alt={`${character.name} portrait`} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="player-name">Nikki</div>
-          <div className="player-class">Lv. 12 Wanderer</div>
-          <Meter value={hp} max={428} kind="health" label={`${hp}/428`} />
-          <Meter value={mp} max={163} kind="mana" label={`${mp}/163`} />
+          <div className="player-name">{character.name}</div>
+          <div className="player-class">
+            Lv. {character.level} {character.classTitle}
+          </div>
+          <Meter value={hp} max={maxHp} kind="health" label={`${hp}/${maxHp}`} />
+          <Meter value={mp} max={maxMp} kind="mana" label={`${mp}/${maxMp}`} />
         </div>
       </section>
       <section className="equipment-section">
         {panelTitle("Equipment", <Shield />)}
         <div className="equipment-body">
           <div className="equip-slots left-slots">
-            <EquipSlot icon="⚔" active />
-            <EquipSlot icon="♜" />
-            <EquipSlot icon="♢" />
-            <EquipSlot icon="♧" />
+            <EquipSlotView icon="⚔" active={Boolean(equipment.weapon)} />
+            <EquipSlotView icon="♜" active={Boolean(equipment.armor)} />
+            <EquipSlotView icon="♢" active={Boolean(equipment.head)} />
+            <EquipSlotView icon="♧" active={Boolean(equipment.gloves)} />
           </div>
           <img
             className="equipment-character"
             src={image}
-            alt={`Nikki equipped with ${weapon?.name}`}
+            alt={`${character.name} equipped with ${weapon?.name ?? "no weapon"}`}
           />
           <div className="equip-slots right-slots">
-            <EquipSlot icon="◇" />
-            <EquipSlot icon="◈" />
-            <EquipSlot icon="◉" />
-            <EquipSlot icon="♞" />
+            <EquipSlotView icon="◇" active={Boolean(equipment.necklace)} />
+            <EquipSlotView icon="◈" active={Boolean(equipment.ring1)} />
+            <EquipSlotView icon="◉" active={Boolean(equipment.ring2)} />
+            <EquipSlotView icon="♞" active={Boolean(equipment.boots)} />
           </div>
         </div>
         <div className="stat-strip">
@@ -344,7 +294,7 @@ export function GameClient() {
               {selected.defense && <span>DEF +{selected.defense}</span>}
               {selected.crit && <span>CRIT +{selected.crit}%</span>}
             </div>
-            {["Weapons", "Armor", "Consumables"].includes(selected.category) && (
+            {(selected.equipSlot || selected.category === "Consumables") && (
               <Button className="gold-button" onClick={() => interactItem(selected)}>
                 {selected.category === "Consumables" ? "Use" : "Equip"}
               </Button>
@@ -352,7 +302,7 @@ export function GameClient() {
           </div>
         )}
         <div className="bag-count">
-          <Backpack /> {items.reduce((sum, item) => sum + item.count, 0)}/40
+          <Backpack /> {bagCount}/{state.bagCapacity}
         </div>
       </section>
     </aside>
@@ -362,19 +312,22 @@ export function GameClient() {
     <aside className="adventure-panel">
       <div className="minimap-wrap">
         <div className="minimap">
-          <img src={moonlitRidge} alt="Moonlit Ridge minimap" />
+          <img src={moonlitRidge} alt={`${activeLocation.name} minimap`} />
           <Compass />
           <span className="north">N</span>
           <span className="map-pin">◆</span>
         </div>
         <div className="map-label">
-          Moonlit Ridge <small>(128, 76)</small>
+          {activeLocation.name}{" "}
+          <small>
+            ({activeLocation.coordinates.x}, {activeLocation.coordinates.y})
+          </small>
         </div>
       </div>
       <section className="game-panel adventure-feed">
         {panelTitle("Adventure Feed", <ScrollText />)}
         <div className="narrative">
-          <p>{notice}</p>
+          <p>{activeLocation.notice}</p>
           <p>The air is cool and the scent of cherry blossoms fills the wind.</p>
         </div>
         <ActionCard
@@ -400,19 +353,19 @@ export function GameClient() {
           title="Travel to Temple City"
           subtitle="Head towards the distant city."
           onClick={() => {
-            setNotice(
+            actions.setNotice(
               "The temple bells carry over the valley. The eastern gate remains sealed by moonlight.",
             );
-            addLog("System", "The road to Temple City is blocked by a lunar ward.");
+            actions.addLog("System", "The road to Temple City is blocked by a lunar ward.");
           }}
         />
       </section>
       <section className="quest-card game-panel">
         <div className="quest-icon">▤</div>
         <div>
-          <span>Main Quest</span>
-          <strong>The Hollow Moon</strong>
-          <p>Investigate the strange lights in the valley.</p>
+          <span>{activeQuest.label}</span>
+          <strong>{activeQuest.title}</strong>
+          <p>{activeQuest.objective}</p>
         </div>
       </section>
     </aside>
@@ -434,20 +387,23 @@ export function GameClient() {
           <h1>ASHEN VALE</h1>
         </div>
         <div className="location">
-          <strong>Moonlit Ridge</strong>
+          <strong>{activeLocation.name}</strong>
           <div>
-            Valley of Whispers <ChevronRight /> Moonlit Ridge
+            {activeLocation.region} <ChevronRight /> {activeLocation.name}
           </div>
         </div>
         <div className="currencies">
           <span className="currency gold">
-            ● <b>2,450</b>
+            ● <b>{currencies.gold.toLocaleString()}</b>
           </span>
           <span className="currency crystal">
-            <Gem /> <b>380</b>
+            <Gem /> <b>{currencies.crystals.toLocaleString()}</b>
           </span>
           <span className="currency">
-            <Backpack /> <b>23/40</b>
+            <Backpack />{" "}
+            <b>
+              {bagCount}/{state.bagCapacity}
+            </b>
           </span>
         </div>
         <div className="utilities">
@@ -487,7 +443,7 @@ export function GameClient() {
         <img
           className="world-character"
           src={image}
-          alt={`Nikki carrying ${weapon?.name}`}
+          alt={`${character.name} carrying ${weapon?.name ?? "no weapon"}`}
           width={768}
           height={1280}
         />
@@ -514,17 +470,7 @@ export function GameClient() {
                 ? `The ${enemy?.name} is defeated. Spoils added to inventory.`
                 : "The ridge claims another wanderer."}
             </span>
-            <Button
-              className="gold-button"
-              onClick={() => {
-                if (combatResult === "defeat") {
-                  setHp(428);
-                  setMp(163);
-                }
-                setEnemy(null);
-                setCombatResult(null);
-              }}
-            >
+            <Button className="gold-button" onClick={() => actions.endCombat()}>
               Continue
             </Button>
           </div>
@@ -561,8 +507,8 @@ export function GameClient() {
           ))}
         </div>
         <div className="chat-log">
-          {visibleLogs.slice(-6).map((log, index) => (
-            <div key={`${log.text}-${index}`}>
+          {visibleLogs.slice(-6).map((log) => (
+            <div key={log.id}>
               <span>[{log.channel}]</span> {log.text}
             </div>
           ))}
@@ -606,14 +552,14 @@ export function GameClient() {
             variant="ghost"
             className="skill-slot potion-slot"
             onClick={() => {
-              const potion = items.find((item) => item.id === "health-potion");
+              const potion = inventory.find((item) => item.id === "health-potion");
               if (potion) interactItem(potion);
             }}
             title="Crimson Potion"
           >
             <span className="skill-art">♥</span>
             <kbd>W</kbd>
-            <small>{items.find((item) => item.id === "health-potion")?.count ?? 0}</small>
+            <small>{inventory.find((item) => item.id === "health-potion")?.count ?? 0}</small>
           </Button>
           <Button variant="ghost" className="skill-slot" onClick={gather} title="Gather">
             <span className="skill-art">❧</span>
@@ -625,9 +571,9 @@ export function GameClient() {
           </Button>
         </div>
         <div className="xp-row">
-          <div style={{ width: `${Math.min(100, xp / 128)}%` }} />
+          <div style={{ width: `${xpPercent}%` }} />
           <span>
-            EXP {xp.toLocaleString()} / 12,800 ({Math.floor(xp / 128)}%)
+            EXP {xp.toLocaleString()} / {maxXp.toLocaleString()} ({xpPercent}%)
           </span>
         </div>
       </section>
@@ -654,7 +600,7 @@ function Meter({
   );
 }
 
-function EquipSlot({ icon, active = false }: { icon: string; active?: boolean }) {
+function EquipSlotView({ icon, active = false }: { icon: string; active?: boolean }) {
   return <div className={`equip-slot ${active ? "active" : ""}`}>{icon}</div>;
 }
 
