@@ -320,7 +320,7 @@
 .mobile-controls, .drawer-close, .drawer-scrim { display: none; }
 
 @media (max-width: 1050px) {
-  .topbar { grid-template-columns: 230px minmax(160px, 1fr) auto; }.brand { font-size: 19px; padding-left: 12px; }.utilities { display: none; }.currency { padding: 0 10px; }.desktop-left { width: 270px; }.desktop-right { width: 290px; }.world-stage { inset-left: 270px; inset-right: 280px; }.hotbar-wrap { width: 390px; min-width: 390px; }
+  .topbar { grid-template-columns: 230px minmax(160px, 1fr) auto; }.brand { font-size: 19px; padding-left: 12px; }.utilities { display: none; }.currency { padding: 0 10px; }.desktop-left { width: 270px; }.desktop-right { width: 290px; }.world-stage { left: 270px; right: 280px; }.hotbar-wrap { width: 390px; min-width: 390px; }
 }
 
 @media (max-width: 760px) {
