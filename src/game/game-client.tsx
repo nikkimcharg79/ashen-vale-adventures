@@ -119,7 +119,10 @@ export function GameClient() {
     const nextHp = Math.max(0, enemy.hp - damage);
     actions.spendSkill(skill.id, skill.mana, skill.cooldown);
     actions.damageEnemy(damage);
-    actions.addLog("Combat", `${skill.name} deals ${damage}${isCritical ? " critical" : ""} damage.`);
+    actions.addLog(
+      "Combat",
+      `${skill.name} deals ${damage}${isCritical ? " critical" : ""} damage.`,
+    );
     if (nextHp <= 0) {
       const loot: Item =
         enemy.name === "Ridge Bandit"

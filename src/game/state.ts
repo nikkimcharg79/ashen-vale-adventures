@@ -224,7 +224,8 @@ export function gameReducer(state: GameState, action: Action): GameState {
       return {
         ...state,
         character: { ...state.character, hp },
-        combat: hp === 0 && state.combat.enemy ? { ...state.combat, result: "defeat" } : state.combat,
+        combat:
+          hp === 0 && state.combat.enemy ? { ...state.combat, result: "defeat" } : state.combat,
       };
     }
     case "MODIFY_MP":
@@ -271,7 +272,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
       if (!enemy) return state;
       const hp = Math.max(0, enemy.hp - action.damage);
       if (hp > 0) return { ...state, combat: { ...state.combat, enemy: { ...enemy, hp } } };
-      const defeated = { ...state, combat: { ...state.combat, enemy: { ...enemy, hp: 0 }, result: "victory" as const } };
+      const defeated = {
+        ...state,
+        combat: { ...state.combat, enemy: { ...enemy, hp: 0 }, result: "victory" as const },
+      };
       return levelUp(defeated, enemy.xp);
     }
     case "DAMAGE_PLAYER":
