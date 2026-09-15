@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Backpack, ChevronRight, Compass, Crosshair, Gem, Hammer, Map, Menu,
   MessageSquare, Navigation, ScrollText, Settings, Shield, Swords, X,
@@ -33,7 +33,7 @@ const rarityClass: Record<Item["rarity"], string> = {
 
 export function GameClient() {
   const [items, setItems] = useState(initialItems);
-  const [selected, setSelected] = useState<Item | null>(initialItems[0] ?? null);
+  const [selected, setSelected] = useState<Item | null>(null);
   const [category, setCategory] = useState("All");
   const [equippedWeapon, setEquippedWeapon] = useState("moonsteel");
   const [equippedArmor, setEquippedArmor] = useState("wanderer");
@@ -181,7 +181,7 @@ export function GameClient() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const panelTitle = (title: string, icon?: React.ReactNode) => (
+  const panelTitle = (title: string, icon?: ReactNode) => (
     <div className="panel-title">{icon}<span>{title}</span><span className="panel-title-line" /></div>
   );
 
@@ -252,7 +252,7 @@ export function GameClient() {
       <img className="world-background" src={moonlitRidge} alt="Moonlit Ridge overlooking a lantern-lit temple city" width={1920} height={1080} />
       <div className="world-vignette" />
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">炎</span><span>ASHEN VALE</span></div>
+        <div className="brand"><span className="brand-mark">炎</span><h1>ASHEN VALE</h1></div>
         <div className="location"><strong>Moonlit Ridge</strong><div>Valley of Whispers <ChevronRight /> Moonlit Ridge</div></div>
         <div className="currencies"><span className="currency gold">● <b>2,450</b></span><span className="currency crystal"><Gem /> <b>380</b></span><span className="currency"><Backpack /> <b>23/40</b></span></div>
         <div className="utilities"><Button variant="ghost" size="icon" title="Messages"><MessageSquare /></Button><Button variant="ghost" size="icon" title="Settings"><Settings /></Button></div>
@@ -301,6 +301,6 @@ function EquipSlot({ icon, active = false }: { icon: string; active?: boolean })
   return <div className={`equip-slot ${active ? "active" : ""}`}>{icon}</div>;
 }
 
-function ActionCard({ icon, title, subtitle, onClick }: { icon: React.ReactNode; title: string; subtitle: string; onClick: () => void }) {
+function ActionCard({ icon, title, subtitle, onClick }: { icon: ReactNode; title: string; subtitle: string; onClick: () => void }) {
   return <Button variant="ghost" className="action-card" onClick={onClick}><span className="action-icon">{icon}</span><span><strong>{title}</strong><small>{subtitle}</small></span><ChevronRight /></Button>;
 }
