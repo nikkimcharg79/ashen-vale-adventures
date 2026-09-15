@@ -143,7 +143,7 @@ export function GameClient() {
     }
   };
 
-  const useSkill = (skillId: string) => {
+  const activateSkill = (skillId: string) => {
     if (!enemy || combatResult) return;
     const skill = skills.find((entry) => entry.id === skillId);
     if (!skill || (cooldowns[skill.id] ?? 0) > 0 || mp < skill.mana) return;
@@ -237,7 +237,7 @@ export function GameClient() {
     const onKey = (event: KeyboardEvent) => {
       if ((event.target as HTMLElement)?.tagName === "INPUT") return;
       const skill = skills.find((entry) => entry.key.toLowerCase() === event.key.toLowerCase());
-      if (skill) useSkill(skill.id);
+      if (skill) activateSkill(skill.id);
       if (event.key.toLowerCase() === "w") {
         const potion = items.find((item) => item.id === "health-potion");
         if (potion) interactItem(potion);
@@ -593,7 +593,7 @@ export function GameClient() {
               variant="ghost"
               className="skill-slot"
               disabled={!enemy || mp < skill.mana || (cooldowns[skill.id] ?? 0) > 0}
-              onClick={() => useSkill(skill.id)}
+              onClick={() => activateSkill(skill.id)}
               title={`${skill.name} · ${skill.mana} MP`}
             >
               <span className="skill-art">{skill.icon}</span>
