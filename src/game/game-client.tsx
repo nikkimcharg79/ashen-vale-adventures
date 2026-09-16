@@ -183,7 +183,7 @@ export function GameClient() {
       actions.spendSkill(skill.id, skill.mana, skill.cooldown);
       actions.guard();
       actions.addLog("Combat", `You brace to parry ${enemy.intent.name}.`);
-      window.setTimeout(() => actions.enemyTurn(), 380);
+      window.setTimeout(() => actions.enemyTurn(), 900);
       return;
     }
 
@@ -207,7 +207,7 @@ export function GameClient() {
       actions.addLog("System", `Victory! Gained ${enemy.xp} XP and ${loot.name}.`);
       return;
     }
-    window.setTimeout(() => actions.enemyTurn(), 380);
+    window.setTimeout(() => actions.enemyTurn(), 900);
   };
 
   const interactItem = (item: Item) => {
@@ -818,7 +818,7 @@ export function GameClient() {
       )}
       {overlay && (
         <button
-          className="drawer-scrim"
+          className={`drawer-scrim ${overlay === "character" || overlay === "adventure" ? "" : "always-on"}`}
           aria-label="Close panel"
           onClick={() => setOverlay(null)}
         />

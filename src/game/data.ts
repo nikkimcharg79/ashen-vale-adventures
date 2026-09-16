@@ -233,7 +233,7 @@ export const enemies: EnemyTemplate[] = [
   {
     id: "dagger-bandit",
     name: "Dagger Bandit",
-    maxHp: 190,
+    maxHp: 320,
     maxPosture: 70,
     attack: 25,
     xp: 210,
@@ -249,7 +249,7 @@ export const enemies: EnemyTemplate[] = [
   {
     id: "mace-bandit",
     name: "Mace Bandit",
-    maxHp: 245,
+    maxHp: 430,
     maxPosture: 100,
     attack: 31,
     xp: 265,
@@ -265,7 +265,7 @@ export const enemies: EnemyTemplate[] = [
   {
     id: "hollow-guardian",
     name: "Hollow Guardian",
-    maxHp: 310,
+    maxHp: 580,
     maxPosture: 145,
     attack: 34,
     xp: 335,
