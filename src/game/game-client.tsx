@@ -288,8 +288,8 @@ export function GameClient() {
         {panelTitle("Equipment", <Shield />)}
         <div className="equipment-body">
           <div className="equip-slots left-slots">
-            <EquipSlotView icon="⚔" active={Boolean(equipment.weapon)} label={weapon?.name} />
-            <EquipSlotView icon="♜" active={Boolean(equipment.armor)} label={armor?.name} />
+            <EquipSlotView icon="⚔" active={Boolean(equipment.weapon)} label={weapon?.name ?? "Weapon — empty"} />
+            <EquipSlotView icon="♜" active={Boolean(equipment.armor)} label={armor?.name ?? "Armor — empty"} />
             <EquipSlotView icon="♢" active={Boolean(equipment.head)} label="Head — empty" />
             <EquipSlotView icon="♧" active={Boolean(equipment.gloves)} label="Gloves — empty" />
           </div>
@@ -914,7 +914,7 @@ function EquipSlotView({
 }: {
   icon: string;
   active?: boolean;
-  label?: string;
+  label?: string | undefined;
 }) {
   return (
     <div className={`equip-slot ${active ? "active" : ""}`} title={label}>
