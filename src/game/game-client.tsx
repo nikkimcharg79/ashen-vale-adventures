@@ -5,6 +5,7 @@ import {
   Compass,
   Gem,
   Hammer,
+  Landmark,
   Map,
   MessageSquare,
   Navigation,
@@ -12,21 +13,25 @@ import {
   Settings,
   Shield,
   Swords,
+  Users,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import moonlitRidge from "@/assets/moonlit-ridge.jpg";
+import lanternDistrict from "@/assets/lantern-district.jpg";
 import nikkiMoonsteel from "@/assets/nikki-moonsteel.png";
 import nikkiDagger from "@/assets/nikki-dagger.png";
 import nikkiAshen from "@/assets/nikki-ashen.png";
-import { enemies, skills } from "./data";
-import type { Item } from "./types";
+import nikkiMace from "@/assets/nikki-mace.png";
+import { ambientChatter, enemies, hubNpcs, partyBoard, skills } from "./data";
+import type { Item, LogChannel } from "./types";
 import { useGameState } from "./state";
 
 const characterImages: Record<string, string> = {
   moonsteel: nikkiMoonsteel,
   dagger: nikkiDagger,
   ashen: nikkiAshen,
+  "bandit-mace": nikkiMace,
 };
 
 const rarityClass: Record<Item["rarity"], string> = {
@@ -36,23 +41,40 @@ const rarityClass: Record<Item["rarity"], string> = {
   epic: "rarity-epic",
 };
 
+const chatTabs: Array<"All" | LogChannel> = ["All", "Nearby", "World", "Party", "Combat", "System"];
+
+type Overlay = "character" | "adventure" | "combat" | "hub" | "chronicle" | null;
+
 export function GameClient() {
-  const { state, actions, bagCount, equippedItem } = useGameState();
-  const { character, equipment, inventory, currencies, activeLocation, activeQuest, combat, logs } =
-    state;
+  const { state, actions, bagCount, equippedItem, weaponPosture } = useGameState();
+  const {
+    character,
+    equipment,
+    inventory,
+    currencies,
+    activeLocation,
+    activeQuest,
+    combat,
+    logs,
+    chronicle,
+  } = state;
   const [selected, setSelected] = useState<Item | null>(null);
   const [category, setCategory] = useState("All");
-  const [chatTab, setChatTab] = useState("All");
+  const [chatTab, setChatTab] = useState<"All" | LogChannel>("All");
   const [chatInput, setChatInput] = useState("");
-  const [overlay, setOverlay] = useState<"character" | "adventure" | null>(null);
+  const [overlay, setOverlay] = useState<Overlay>(null);
 
   const weapon = equippedItem("weapon");
+  const armor = equippedItem("armor");
   const stats = character.calculatedStats;
   const { attack, defense, crit, maxHp, maxMp } = stats;
   const { hp, mp, xp, maxXp } = character;
   const enemy = combat.enemy;
   const combatResult = combat.result;
   const cooldowns = combat.cooldowns;
+  const staggered = (enemy?.staggerTurns ?? 0) > 0;
+  const inHub = activeLocation.id === "lantern-district";
+  const backdrop = inHub ? lanternDistrict : moonlitRidge;
   const image = characterImages[equipment.weapon ?? ""] ?? nikkiMoonsteel;
   const visibleItems =
     category === "All" ? inventory : inventory.filter((item) => item.category === category);
@@ -63,7 +85,7 @@ export function GameClient() {
     const base = enemies[index ?? Math.floor(Math.random() * enemies.length)] ?? enemies[0]!;
     actions.startCombat(base);
     actions.setNotice(base.flavor);
-    actions.addLog("Combat", `${base.name} blocks your path!`);
+    actions.addLog("Combat", `${base.name} blocks your path! ${base.trait}`);
   };
 
   const gather = () => {
@@ -108,59 +130,84 @@ export function GameClient() {
     }
   };
 
+  const lootFor = (enemyId: string): Item => {
+    if (enemyId === "dagger-bandit")
+      return {
+        id: "dagger",
+        name: "Iron Dagger",
+        category: "Weapons",
+        icon: "🗡",
+        rarity: "common",
+        count: 1,
+        attack: 9,
+        crit: 9,
+        posture: 3,
+        equipSlot: "weapon",
+        description: "A quick, practical blade favored by ridge bandits.",
+        flavor: "Fast strikes, thin posture pressure.",
+      };
+    if (enemyId === "mace-bandit")
+      return {
+        id: "bandit-mace",
+        name: "Bandit Mace",
+        category: "Weapons",
+        icon: "⚒",
+        rarity: "uncommon",
+        count: 1,
+        attack: 22,
+        posture: 16,
+        equipSlot: "weapon",
+        description: "A spiked iron head on a battered haft, taken from a mace bandit.",
+        flavor: "Crushing weight. The finest posture breaker on the ridge.",
+      };
+    return {
+      id: "moonlit-boots",
+      name: "Moonlit Boots",
+      category: "Armor",
+      icon: "♞",
+      rarity: "rare",
+      count: 1,
+      defense: 7,
+      crit: 2,
+      equipSlot: "boots",
+      description: "Soft-stepping boots touched by silver light.",
+    };
+  };
+
   const activateSkill = (skillId: string) => {
     if (!enemy || combatResult) return;
     const skill = skills.find((entry) => entry.id === skillId);
     if (!skill || (cooldowns[skill.id] ?? 0) > 0 || mp < skill.mana) return;
-    const isCritical = Math.random() * 100 < crit + (skill.id === "moonveil" ? 18 : 0);
+
+    if (skill.kind === "guard") {
+      actions.spendSkill(skill.id, skill.mana, skill.cooldown);
+      actions.guard();
+      actions.addLog("Combat", `You brace to parry ${enemy.intent.name}.`);
+      window.setTimeout(() => actions.enemyTurn(), 900);
+      return;
+    }
+
+    const isCritical = staggered || Math.random() * 100 < crit + (skill.lunar ? 18 : 0);
+    const critMultiplier = staggered ? 1.75 : 1.65;
     const damage = Math.round(
-      attack * skill.multiplier * (0.84 + Math.random() * 0.25) * (isCritical ? 1.65 : 1),
+      attack * skill.multiplier * (0.84 + Math.random() * 0.25) * (isCritical ? critMultiplier : 1),
     );
+    const postureDamage = skill.posture + weaponPosture + combat.momentum * 2;
     const nextHp = Math.max(0, enemy.hp - damage);
     actions.spendSkill(skill.id, skill.mana, skill.cooldown);
-    actions.damageEnemy(damage);
+    actions.damageEnemy(damage, postureDamage);
     actions.addLog(
       "Combat",
-      `${skill.name} deals ${damage}${isCritical ? " critical" : ""} damage.`,
+      `${skill.name} deals ${damage}${isCritical ? (staggered ? " vulnerable critical" : " critical") : ""} damage and ${postureDamage} posture.`,
     );
     if (nextHp <= 0) {
-      const loot: Item =
-        enemy.name === "Ridge Bandit"
-          ? {
-              id: "dagger",
-              name: "Iron Dagger",
-              category: "Weapons",
-              icon: "🗡",
-              rarity: "common",
-              count: 1,
-              attack: 9,
-              crit: 9,
-              equipSlot: "weapon",
-              description: "A quick, practical blade favored by ridge bandits.",
-            }
-          : {
-              id: "silverleaf-potion",
-              name: "Silverleaf Potion",
-              category: "Consumables",
-              icon: "✦",
-              rarity: "uncommon",
-              count: 1,
-              mana: 75,
-              description: "Restores 75 mana.",
-            };
+      const loot = lootFor(enemy.id);
       actions.addItem(loot);
       actions.modifyCurrencies(40, 0);
       actions.addLog("System", `Victory! Gained ${enemy.xp} XP and ${loot.name}.`);
       return;
     }
-    window.setTimeout(() => {
-      const incoming = Math.max(
-        5,
-        Math.round(enemy.attack * (0.85 + Math.random() * 0.3) - defense * 0.35),
-      );
-      actions.damagePlayer(incoming);
-      actions.addLog("Combat", `${enemy.name} strikes for ${incoming} damage.`);
-    }, 350);
+    window.setTimeout(() => actions.enemyTurn(), 900);
   };
 
   const interactItem = (item: Item) => {
@@ -177,7 +224,7 @@ export function GameClient() {
   const sendChat = () => {
     const text = chatInput.trim();
     if (!text) return;
-    actions.addLog("World", `Nikki: ${text}`);
+    actions.addLog(inHub ? "Nearby" : "World", `Nikki: ${text}`);
     setChatInput("");
   };
 
@@ -197,6 +244,15 @@ export function GameClient() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  useEffect(() => {
+    if (!inHub) return;
+    const timer = window.setInterval(() => {
+      const line = ambientChatter[Math.floor(Math.random() * ambientChatter.length)]!;
+      actions.addLog("Nearby", line);
+    }, 14000);
+    return () => window.clearInterval(timer);
+  }, [inHub, actions]);
 
   const panelTitle = (title: string, icon?: ReactNode) => (
     <div className="panel-title">
@@ -225,10 +281,18 @@ export function GameClient() {
         {panelTitle("Equipment", <Shield />)}
         <div className="equipment-body">
           <div className="equip-slots left-slots">
-            <EquipSlotView icon="⚔" active={Boolean(equipment.weapon)} />
-            <EquipSlotView icon="♜" active={Boolean(equipment.armor)} />
-            <EquipSlotView icon="♢" active={Boolean(equipment.head)} />
-            <EquipSlotView icon="♧" active={Boolean(equipment.gloves)} />
+            <EquipSlotView
+              icon="⚔"
+              active={Boolean(equipment.weapon)}
+              label={weapon?.name ?? "Weapon — empty"}
+            />
+            <EquipSlotView
+              icon="♜"
+              active={Boolean(equipment.armor)}
+              label={armor?.name ?? "Armor — empty"}
+            />
+            <EquipSlotView icon="♢" active={Boolean(equipment.head)} label="Head — empty" />
+            <EquipSlotView icon="♧" active={Boolean(equipment.gloves)} label="Gloves — empty" />
           </div>
           <img
             className="equipment-character"
@@ -236,12 +300,26 @@ export function GameClient() {
             alt={`${character.name} equipped with ${weapon?.name ?? "no weapon"}`}
           />
           <div className="equip-slots right-slots">
-            <EquipSlotView icon="◇" active={Boolean(equipment.necklace)} />
-            <EquipSlotView icon="◈" active={Boolean(equipment.ring1)} />
-            <EquipSlotView icon="◉" active={Boolean(equipment.ring2)} />
-            <EquipSlotView icon="♞" active={Boolean(equipment.boots)} />
+            <EquipSlotView icon="◇" active={Boolean(equipment.necklace)} label="Necklace — empty" />
+            <EquipSlotView icon="◈" active={Boolean(equipment.ring1)} label="Ring — empty" />
+            <EquipSlotView icon="◉" active={Boolean(equipment.ring2)} label="Ring — empty" />
+            <EquipSlotView
+              icon="♞"
+              active={Boolean(equipment.boots)}
+              label={equippedItem("boots")?.name ?? "Boots — empty"}
+            />
           </div>
         </div>
+        {weapon && (
+          <p className="equip-tooltip">
+            <strong className={rarityClass[weapon.rarity]}>{weapon.name}</strong>
+            <span>{weapon.flavor ?? weapon.description}</span>
+            <span>
+              ATK +{weapon.attack ?? 0} · POSTURE +{weapon.posture ?? 0}
+              {weapon.crit ? ` · CRIT +${weapon.crit}%` : ""}
+            </span>
+          </p>
+        )}
         <div className="stat-strip">
           <span>
             ATK <b>{attack}</b>
@@ -292,11 +370,23 @@ export function GameClient() {
               </small>
             </div>
             <p>{selected.description}</p>
+            {selected.flavor && <p className="italic opacity-80">{selected.flavor}</p>}
             <div className="item-stats">
               {selected.attack && <span>ATK +{selected.attack}</span>}
               {selected.defense && <span>DEF +{selected.defense}</span>}
               {selected.crit && <span>CRIT +{selected.crit}%</span>}
+              {selected.posture && <span>POSTURE +{selected.posture}</span>}
             </div>
+            {selected.equipSlot && weapon && selected.equipSlot === "weapon" && (
+              <div className="item-stats compare">
+                <span>
+                  vs {weapon.name}: {(selected.attack ?? 0) - (weapon.attack ?? 0) >= 0 ? "+" : ""}
+                  {(selected.attack ?? 0) - (weapon.attack ?? 0)} ATK ·{" "}
+                  {(selected.posture ?? 0) - (weapon.posture ?? 0) >= 0 ? "+" : ""}
+                  {(selected.posture ?? 0) - (weapon.posture ?? 0)} POSTURE
+                </span>
+              </div>
+            )}
             {(selected.equipSlot || selected.category === "Consumables") && (
               <Button className="gold-button" onClick={() => interactItem(selected)}>
                 {selected.category === "Consumables" ? "Use" : "Equip"}
@@ -315,7 +405,7 @@ export function GameClient() {
     <aside className="adventure-panel">
       <div className="minimap-wrap">
         <div className="minimap">
-          <img src={moonlitRidge} alt={`${activeLocation.name} minimap`} />
+          <img src={backdrop} alt={`${activeLocation.name} minimap`} />
           <Compass />
           <span className="north">N</span>
           <span className="map-pin">◆</span>
@@ -331,7 +421,11 @@ export function GameClient() {
         {panelTitle("Adventure Feed", <ScrollText />)}
         <div className="narrative">
           <p>{activeLocation.notice}</p>
-          <p>The air is cool and the scent of cherry blossoms fills the wind.</p>
+          <p>
+            {inHub
+              ? "Traders call out from the market stalls while teahouse lanterns sway overhead."
+              : "The air is cool and the scent of cherry blossoms fills the wind."}
+          </p>
         </div>
         <ActionCard
           icon={<Compass />}
@@ -341,9 +435,21 @@ export function GameClient() {
         />
         <ActionCard
           icon={<Swords />}
-          title="Hunt Bandits"
-          subtitle="Defeat the bandits and claim their loot."
+          title="Hunt Dagger Bandits"
+          subtitle="Fast, evasive outlaws with thin posture."
           onClick={() => startCombat(0)}
+        />
+        <ActionCard
+          icon={<Hammer />}
+          title="Hunt Mace Bandits"
+          subtitle="Heavy armour crushers — parry their windup."
+          onClick={() => startCombat(1)}
+        />
+        <ActionCard
+          icon={<Shield />}
+          title="Challenge the Hollow Guardian"
+          subtitle="Armoured construct with enormous posture."
+          onClick={() => startCombat(2)}
         />
         <ActionCard
           icon={<Hammer />}
@@ -351,17 +457,28 @@ export function GameClient() {
           subtitle="Collect herbs, ore or silverleaf."
           onClick={gather}
         />
-        <ActionCard
-          icon={<Navigation />}
-          title="Travel to Temple City"
-          subtitle="Head towards the distant city."
-          onClick={() => {
-            actions.setNotice(
-              "The temple bells carry over the valley. The eastern gate remains sealed by moonlight.",
-            );
-            actions.addLog("System", "The road to Temple City is blocked by a lunar ward.");
-          }}
-        />
+        {inHub ? (
+          <ActionCard
+            icon={<Navigation />}
+            title="Return to Moonlit Ridge"
+            subtitle="Back up the pass to the hunting grounds."
+            onClick={() => {
+              actions.travel("moonlit-ridge");
+              actions.setNotice("The pass is quiet again. Only wind and distant water.");
+            }}
+          />
+        ) : (
+          <ActionCard
+            icon={<Landmark />}
+            title="Travel to The Lantern District"
+            subtitle="Descend into the temple city's social hub."
+            onClick={() => {
+              actions.travel("lantern-district");
+              actions.addLog("Nearby", "Lantern Keeper Oakhaven: Welcome back, wanderer.");
+              setOverlay(null);
+            }}
+          />
+        )}
       </section>
       <section className="quest-card game-panel">
         <div className="quest-icon">▤</div>
@@ -374,12 +491,168 @@ export function GameClient() {
     </aside>
   );
 
+  const LanternPanel = () => (
+    <aside className="hub-panel game-panel">
+      {panelTitle("The Lantern District", <Landmark />)}
+      {!inHub && (
+        <p className="hub-hint">
+          You are still on the ridge. Travel down to the district to speak with its keepers.
+        </p>
+      )}
+      <div className="hub-subtitle">
+        <Users /> Party Quest Board
+      </div>
+      {partyBoard.map((listing) => (
+        <div key={listing.id} className="board-row">
+          <div>
+            <strong>{listing.title}</strong>
+            <small>
+              {listing.slots} — {listing.needs}
+            </small>
+          </div>
+          <Button
+            className="gold-button"
+            onClick={() => {
+              actions.addLog(
+                "Party",
+                `You raised your lantern for ${listing.title} (${listing.slots}).`,
+              );
+              actions.setNotice(
+                `A recruiter waves you toward the ${listing.title} gathering stone.`,
+              );
+            }}
+          >
+            Join
+          </Button>
+        </div>
+      ))}
+      <div className="hub-subtitle">
+        <MessageSquare /> Teahouse &amp; Market
+      </div>
+      {hubNpcs.map((npc) => (
+        <Button
+          key={npc.id}
+          variant="ghost"
+          className="npc-row"
+          onClick={() => {
+            const line = npc.lines[Math.floor(Math.random() * npc.lines.length)]!;
+            actions.addLog("Nearby", line);
+            actions.setNotice(line);
+          }}
+        >
+          <span className="npc-icon">{npc.icon}</span>
+          <span>
+            <strong>{npc.name}</strong>
+            <small>{npc.role} · speak</small>
+          </span>
+          <ChevronRight />
+        </Button>
+      ))}
+    </aside>
+  );
+
+  const ChroniclePanel = () => (
+    <aside className="chronicle-panel game-panel">
+      {panelTitle("Character Chronicle", <ScrollText />)}
+      <ol className="chronicle-list">
+        {chronicle.map((entry) => (
+          <li key={entry.id}>
+            <strong>{entry.title}</strong>
+            <small>{entry.detail}</small>
+          </li>
+        ))}
+      </ol>
+    </aside>
+  );
+
+  const CombatPanel = () => (
+    <aside className="combat-panel game-panel">
+      {panelTitle("Combat", <Swords />)}
+      {enemy ? (
+        <>
+          <div className="intent-badge">
+            <span>{staggered ? "STAGGERED" : "INTENT"}</span>
+            <strong>{staggered ? "Vulnerable — 1.75× critical" : enemy.intent.telegraph}</strong>
+          </div>
+          <Meter
+            value={enemy.hp}
+            max={enemy.maxHp}
+            kind="enemy"
+            label={`HP ${enemy.hp}/${enemy.maxHp}`}
+          />
+          <Meter
+            value={enemy.posture}
+            max={enemy.maxPosture}
+            kind="posture"
+            label={`POSTURE ${enemy.posture}/${enemy.maxPosture}`}
+          />
+          <p className="combat-trait">{enemy.trait}</p>
+          <div className="combat-actions">
+            {skills.map((skill) => (
+              <Button
+                key={skill.id}
+                variant="ghost"
+                className="combat-action"
+                disabled={
+                  mp < skill.mana || (cooldowns[skill.id] ?? 0) > 0 || Boolean(combatResult)
+                }
+                onClick={() => activateSkill(skill.id)}
+              >
+                <span className="skill-art">{skill.icon}</span>
+                <span>
+                  <strong>{skill.name}</strong>
+                  <small>{skill.description}</small>
+                </span>
+                <kbd>{skill.key}</kbd>
+              </Button>
+            ))}
+            <Button
+              variant="ghost"
+              className="combat-action"
+              onClick={() => {
+                const potion = inventory.find((item) => item.id === "health-potion");
+                if (potion) interactItem(potion);
+              }}
+            >
+              <span className="skill-art">♥</span>
+              <span>
+                <strong>Crimson Potion</strong>
+                <small>Quick-use health restoration.</small>
+              </span>
+              <kbd>W</kbd>
+            </Button>
+            <Button
+              variant="ghost"
+              className="combat-action"
+              onClick={() => {
+                const potion = inventory.find((item) => item.id === "silverleaf-potion");
+                if (potion) interactItem(potion);
+              }}
+            >
+              <span className="skill-art">✦</span>
+              <span>
+                <strong>Silverleaf Potion</strong>
+                <small>Quick-use mana restoration.</small>
+              </span>
+            </Button>
+          </div>
+        </>
+      ) : (
+        <p className="hub-hint">No hostile nearby. Hunt from the Adventure feed to begin a duel.</p>
+      )}
+    </aside>
+  );
+
   return (
     <main className="game-shell">
       <img
         className="world-background"
-        src={moonlitRidge}
-        alt="Moonlit Ridge overlooking a lantern-lit temple city"
+        src={backdrop}
+        alt={
+          inHub
+            ? "The Lantern District, a lantern-lit market street of the temple city"
+            : "Moonlit Ridge overlooking a lantern-lit temple city"
+        }
         width={1920}
         height={1080}
       />
@@ -410,6 +683,22 @@ export function GameClient() {
           </span>
         </div>
         <div className="utilities">
+          <Button
+            variant="ghost"
+            size="icon"
+            title="The Lantern District"
+            onClick={() => setOverlay("hub")}
+          >
+            <Landmark />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Character Chronicle"
+            onClick={() => setOverlay("chronicle")}
+          >
+            <ScrollText />
+          </Button>
           <Button variant="ghost" size="icon" title="Messages">
             <MessageSquare />
           </Button>
@@ -442,7 +731,7 @@ export function GameClient() {
         </Button>
       </div>
 
-      <section className="world-stage" aria-label="Moonlit Ridge world view">
+      <section className="world-stage" aria-label={`${activeLocation.name} world view`}>
         <img
           className="world-character"
           src={image}
@@ -451,10 +740,10 @@ export function GameClient() {
           height={1280}
         />
         {enemy && (
-          <div className="enemy-card">
+          <div className={`enemy-card ${staggered ? "staggered" : ""}`}>
             <div className="enemy-icon">{enemy.icon}</div>
             <div className="enemy-info">
-              <span>HOSTILE</span>
+              <span>{staggered ? "STAGGERED · VULNERABLE" : "HOSTILE"}</span>
               <strong>{enemy.name}</strong>
               <Meter
                 value={enemy.hp}
@@ -462,7 +751,22 @@ export function GameClient() {
                 kind="enemy"
                 label={`${enemy.hp}/${enemy.maxHp}`}
               />
+              <Meter
+                value={enemy.posture}
+                max={enemy.maxPosture}
+                kind="posture"
+                label={`POSTURE ${enemy.posture}/${enemy.maxPosture}`}
+              />
+              <div className="intent-tag">
+                {staggered ? "Guard broken — 1.75× critical" : enemy.intent.telegraph}
+              </div>
             </div>
+          </div>
+        )}
+        {inHub && !enemy && (
+          <div className="hub-marker">
+            <strong>Party Quest Board</strong>
+            <small>Moon Temple PQ — 2/4 — Need Healer / Support</small>
           </div>
         )}
         {combatResult && (
@@ -487,10 +791,35 @@ export function GameClient() {
         <Button onClick={() => setOverlay("adventure")}>
           <Map /> Adventure
         </Button>
+        <Button onClick={() => setOverlay("combat")}>
+          <Swords /> Combat
+        </Button>
+        <Button onClick={() => setOverlay("hub")}>
+          <Landmark /> Lantern
+        </Button>
+        <Button onClick={() => setOverlay("chronicle")}>
+          <ScrollText /> Chronicle
+        </Button>
       </div>
+      {(overlay === "combat" || overlay === "hub" || overlay === "chronicle") && (
+        <div className="floating-drawer">
+          {overlay === "combat" && <CombatPanel />}
+          {overlay === "hub" && <LanternPanel />}
+          {overlay === "chronicle" && <ChroniclePanel />}
+          <Button
+            className="drawer-close"
+            variant="ghost"
+            size="icon"
+            aria-label="Close panel"
+            onClick={() => setOverlay(null)}
+          >
+            <X />
+          </Button>
+        </div>
+      )}
       {overlay && (
         <button
-          className="drawer-scrim"
+          className={`drawer-scrim ${overlay === "character" || overlay === "adventure" ? "" : "always-on"}`}
           aria-label="Close panel"
           onClick={() => setOverlay(null)}
         />
@@ -498,7 +827,7 @@ export function GameClient() {
 
       <section className="chat game-panel">
         <div className="chat-tabs">
-          {["All", "World", "Combat", "System"].map((tab) => (
+          {chatTabs.map((tab) => (
             <Button
               key={tab}
               variant="ghost"
@@ -540,10 +869,10 @@ export function GameClient() {
             <Button
               key={skill.id}
               variant="ghost"
-              className="skill-slot"
+              className={`skill-slot ${skill.kind === "guard" ? "guard-slot" : ""}`}
               disabled={!enemy || mp < skill.mana || (cooldowns[skill.id] ?? 0) > 0}
               onClick={() => activateSkill(skill.id)}
-              title={`${skill.name} · ${skill.mana} MP`}
+              title={`${skill.name} · ${skill.mana} MP · ${skill.description}`}
             >
               <span className="skill-art">{skill.icon}</span>
               <kbd>{skill.key}</kbd>
@@ -603,8 +932,20 @@ function Meter({
   );
 }
 
-function EquipSlotView({ icon, active = false }: { icon: string; active?: boolean }) {
-  return <div className={`equip-slot ${active ? "active" : ""}`}>{icon}</div>;
+function EquipSlotView({
+  icon,
+  active = false,
+  label,
+}: {
+  icon: string;
+  active?: boolean;
+  label?: string | undefined;
+}) {
+  return (
+    <div className={`equip-slot ${active ? "active" : ""}`} title={label}>
+      {icon}
+    </div>
+  );
 }
 
 function ActionCard({

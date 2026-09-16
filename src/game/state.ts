@@ -1,13 +1,16 @@
 import { useCallback, useMemo, useReducer } from "react";
-import { initialItems } from "./data";
+import { initialItems, locations } from "./data";
 import type {
   BaseStats,
   CalculatedStats,
+  Enemy,
+  EnemyIntent,
   EnemyTemplate,
   EquipSlot,
   EquipmentSlots,
   GameState,
   Item,
+  LocationId,
   LogChannel,
 } from "./types";
 
@@ -53,6 +56,12 @@ export function calculateStats(
   );
 }
 
+/** Extra posture damage granted by the equipped weapon. */
+export function postureBonus(equipment: EquipmentSlots, inventory: Item[]): number {
+  const weapon = inventory.find((item) => item.id === equipment.weapon);
+  return weapon?.posture ?? 0;
+}
+
 let logSeed = 0;
 const makeLog = (channel: LogChannel, text: string) => ({
   id: `log-${++logSeed}`,
@@ -60,6 +69,10 @@ const makeLog = (channel: LogChannel, text: string) => ({
   text,
   timestamp: Date.now(),
 });
+
+const pickIntent = (enemy: EnemyTemplate, roll: number): EnemyIntent =>
+  enemy.intents[Math.floor(roll * enemy.intents.length) % enemy.intents.length] ??
+  enemy.intents[0]!;
 
 function withStats(state: GameState): GameState {
   const calculatedStats = calculateStats(
@@ -78,6 +91,15 @@ function withStats(state: GameState): GameState {
   };
 }
 
+let chronicleSeed = 0;
+function chronicle(state: GameState, id: string, title: string, detail: string): GameState {
+  if (state.chronicle.some((entry) => entry.id === id)) return state;
+  return {
+    ...state,
+    chronicle: [...state.chronicle, { id, title, detail, timestamp: Date.now() + ++chronicleSeed }],
+  };
+}
+
 export const initialGameState: GameState = withStats({
   character: {
     name: "Nikki",
@@ -93,22 +115,25 @@ export const initialGameState: GameState = withStats({
   equipment: { ...emptyEquipment, weapon: "moonsteel", armor: "wanderer" },
   inventory: initialItems,
   currencies: { gold: 2450, crystals: 380 },
-  activeLocation: {
-    name: "Moonlit Ridge",
-    region: "Valley of Whispers",
-    coordinates: { x: 128, y: 76 },
-    notice: "A narrow pass overlooks the distant temple city.",
-  },
+  activeLocation: locations["moonlit-ridge"],
   activeQuest: {
     label: "Main Quest",
     title: "The Hollow Moon",
     objective: "Investigate the strange lights in the valley.",
   },
-  combat: { enemy: null, cooldowns: {}, result: null },
+  combat: { enemy: null, cooldowns: {}, result: null, guarding: false, momentum: 0 },
   logs: [
     makeLog("System", "You have entered Moonlit Ridge."),
     makeLog("System", "Gained 120 experience."),
     makeLog("World", "Kaei: LFG temple city run"),
+  ],
+  chronicle: [
+    {
+      id: "awakening",
+      title: "Awakening at Moonlit Ridge",
+      detail: "Nikki woke beneath the hollow moon with no memory of the road behind her.",
+      timestamp: Date.now(),
+    },
   ],
   bagCapacity: 40,
 });
@@ -123,11 +148,14 @@ type Action =
   | { type: "MODIFY_HP"; delta: number }
   | { type: "MODIFY_MP"; delta: number }
   | { type: "ADD_LOG"; channel: LogChannel; text: string }
+  | { type: "ADD_CHRONICLE"; id: string; title: string; detail: string }
   | { type: "SET_NOTICE"; text: string }
-  | { type: "START_COMBAT"; enemy: EnemyTemplate }
+  | { type: "TRAVEL"; location: LocationId }
+  | { type: "START_COMBAT"; enemy: EnemyTemplate; roll: number }
   | { type: "SPEND_SKILL"; skillId: string; mana: number; cooldown: number }
-  | { type: "DAMAGE_ENEMY"; damage: number }
-  | { type: "DAMAGE_PLAYER"; damage: number }
+  | { type: "GUARD" }
+  | { type: "DAMAGE_ENEMY"; damage: number; posture: number }
+  | { type: "ENEMY_TURN"; damageRoll: number; intentRoll: number }
   | { type: "END_COMBAT" };
 
 function levelUp(state: GameState, amount: number): GameState {
@@ -160,6 +188,36 @@ function levelUp(state: GameState, amount: number): GameState {
       mp: level > state.character.level ? next.character.calculatedStats.maxMp : next.character.mp,
     },
   };
+}
+
+function pushLog(state: GameState, channel: LogChannel, text: string): GameState {
+  return { ...state, logs: [...state.logs.slice(-40), makeLog(channel, text)] };
+}
+
+/** Applies posture damage and flips the enemy into a staggered, vulnerable state at zero. */
+function applyPosture(state: GameState, enemy: Enemy, amount: number): GameState {
+  const posture = Math.max(0, enemy.posture - amount);
+  if (posture > 0 || enemy.staggerTurns > 0) {
+    return { ...state, combat: { ...state.combat, enemy: { ...enemy, posture } } };
+  }
+  const staggered = {
+    ...state,
+    combat: {
+      ...state.combat,
+      enemy: { ...enemy, posture: 0, staggerTurns: 1 },
+    },
+  };
+  const logged = pushLog(
+    staggered,
+    "Combat",
+    `${enemy.name} is STAGGERED! Its guard breaks — critical damage is guaranteed.`,
+  );
+  return chronicle(
+    logged,
+    "first-stagger",
+    "First Stagger Executed",
+    `Nikki shattered the posture of a ${enemy.name} and opened it for a killing blow.`,
+  );
 }
 
 export function gameReducer(state: GameState, action: Action): GameState {
@@ -240,21 +298,39 @@ export function gameReducer(state: GameState, action: Action): GameState {
         },
       };
     case "ADD_LOG":
-      return {
-        ...state,
-        logs: [...state.logs.slice(-30), makeLog(action.channel, action.text)],
-      };
+      return pushLog(state, action.channel, action.text);
+    case "ADD_CHRONICLE":
+      return chronicle(state, action.id, action.title, action.detail);
     case "SET_NOTICE":
       return { ...state, activeLocation: { ...state.activeLocation, notice: action.text } };
-    case "START_COMBAT":
-      return {
-        ...state,
-        combat: {
-          enemy: { ...action.enemy, hp: action.enemy.maxHp },
-          cooldowns: {},
-          result: null,
-        },
+    case "TRAVEL": {
+      const location = locations[action.location];
+      const travelled = { ...state, activeLocation: location };
+      const logged = pushLog(travelled, "System", `You arrive at ${location.name}.`);
+      return action.location === "lantern-district"
+        ? chronicle(
+            logged,
+            "lantern-entrance",
+            "Entrance to Lantern District",
+            "Nikki walked the lantern-lit stones of the temple city for the first time.",
+          )
+        : logged;
+    }
+    case "START_COMBAT": {
+      const intent = pickIntent(action.enemy, action.roll);
+      const enemy: Enemy = {
+        ...action.enemy,
+        hp: action.enemy.maxHp,
+        posture: action.enemy.maxPosture,
+        staggerTurns: 0,
+        intent,
       };
+      const started = {
+        ...state,
+        combat: { enemy, cooldowns: {}, result: null, guarding: false, momentum: 0 },
+      };
+      return pushLog(started, "Combat", `${enemy.name} is ${intent.telegraph}.`);
+    }
     case "SPEND_SKILL": {
       const cooldowns: Record<string, number> = {};
       for (const [key, value] of Object.entries(state.combat.cooldowns)) {
@@ -267,19 +343,101 @@ export function gameReducer(state: GameState, action: Action): GameState {
         combat: { ...state.combat, cooldowns },
       };
     }
+    case "GUARD":
+      return { ...state, combat: { ...state.combat, guarding: true } };
     case "DAMAGE_ENEMY": {
       const enemy = state.combat.enemy;
       if (!enemy) return state;
       const hp = Math.max(0, enemy.hp - action.damage);
-      if (hp > 0) return { ...state, combat: { ...state.combat, enemy: { ...enemy, hp } } };
-      const defeated = {
+      const momentum = Math.min(5, state.combat.momentum + 1);
+      const hit: GameState = {
         ...state,
-        combat: { ...state.combat, enemy: { ...enemy, hp: 0 }, result: "victory" as const },
+        combat: { ...state.combat, enemy: { ...enemy, hp }, momentum },
       };
-      return levelUp(defeated, enemy.xp);
+      if (hp <= 0) {
+        const defeated: GameState = {
+          ...hit,
+          combat: { ...hit.combat, enemy: { ...enemy, hp: 0 }, result: "victory" },
+        };
+        const marked = chronicle(
+          defeated,
+          "ridge-outlaws",
+          "Defeat of the Ridge Outlaws",
+          `A ${enemy.name} fell to Nikki's blade above the Valley of Whispers.`,
+        );
+        return levelUp(marked, enemy.xp);
+      }
+      return applyPosture(hit, { ...enemy, hp }, action.posture);
     }
-    case "DAMAGE_PLAYER":
-      return gameReducer(state, { type: "MODIFY_HP", delta: -action.damage });
+    case "ENEMY_TURN": {
+      const enemy = state.combat.enemy;
+      if (!enemy || state.combat.result) return state;
+      const nextIntent = pickIntent(enemy, action.intentRoll);
+      const finish = (next: GameState, current: Enemy) =>
+        pushLog(
+          {
+            ...next,
+            combat: {
+              ...next.combat,
+              guarding: false,
+              enemy: { ...current, intent: nextIntent },
+            },
+          },
+          "Combat",
+          `${enemy.name} is ${nextIntent.telegraph}.`,
+        );
+
+      if (enemy.staggerTurns > 0) {
+        const recovered: Enemy = {
+          ...enemy,
+          staggerTurns: 0,
+          posture: Math.round(enemy.maxPosture * 0.6),
+        };
+        const logged = pushLog(
+          state,
+          "Combat",
+          `${enemy.name} is staggered and loses its turn, then recovers its footing.`,
+        );
+        return finish(logged, recovered);
+      }
+
+      if (enemy.intent.kind === "defend") {
+        const braced: Enemy = {
+          ...enemy,
+          posture: Math.min(enemy.maxPosture, enemy.posture + Math.round(enemy.maxPosture * 0.15)),
+        };
+        const logged = pushLog(
+          state,
+          "Combat",
+          `${enemy.name} holds ${enemy.intent.name} and steadies its guard.`,
+        );
+        return finish(logged, braced);
+      }
+
+      const { defense } = state.character.calculatedStats;
+      const raw = enemy.attack * enemy.intent.multiplier * (0.85 + action.damageRoll * 0.3);
+      const mitigation = enemy.intent.kind === "heavy" ? defense * 0.2 : defense * 0.35;
+      const guarded = state.combat.guarding;
+      const incoming = Math.max(3, Math.round((raw - mitigation) * (guarded ? 0.3 : 1)));
+      const damaged = gameReducer(state, { type: "MODIFY_HP", delta: -incoming });
+      const logged = pushLog(
+        damaged,
+        "Combat",
+        guarded
+          ? `You parry ${enemy.intent.name} — only ${incoming} damage lands.`
+          : `${enemy.name} lands ${enemy.intent.name} for ${incoming} damage.`,
+      );
+      if (logged.combat.result === "defeat") return logged;
+      const currentEnemy = logged.combat.enemy ?? enemy;
+      if (!guarded) return finish(logged, currentEnemy);
+      const countered = applyPosture(logged, currentEnemy, 46);
+      const counterLogged = pushLog(
+        countered,
+        "Combat",
+        `Your counter smashes ${enemy.name}'s posture.`,
+      );
+      return finish(counterLogged, counterLogged.combat.enemy ?? currentEnemy);
+    }
     case "END_COMBAT": {
       const revive = state.combat.result === "defeat";
       return {
@@ -291,7 +449,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
               mp: state.character.calculatedStats.maxMp,
             }
           : state.character,
-        combat: { enemy: null, cooldowns: {}, result: null },
+        combat: { enemy: null, cooldowns: {}, result: null, guarding: false, momentum: 0 },
       };
     }
     default:
@@ -314,12 +472,19 @@ export function useGameState() {
       modifyHp: (delta: number) => dispatch({ type: "MODIFY_HP", delta }),
       modifyMp: (delta: number) => dispatch({ type: "MODIFY_MP", delta }),
       addLog: (channel: LogChannel, text: string) => dispatch({ type: "ADD_LOG", channel, text }),
+      addChronicle: (id: string, title: string, detail: string) =>
+        dispatch({ type: "ADD_CHRONICLE", id, title, detail }),
       setNotice: (text: string) => dispatch({ type: "SET_NOTICE", text }),
-      startCombat: (enemy: EnemyTemplate) => dispatch({ type: "START_COMBAT", enemy }),
+      travel: (location: LocationId) => dispatch({ type: "TRAVEL", location }),
+      startCombat: (enemy: EnemyTemplate) =>
+        dispatch({ type: "START_COMBAT", enemy, roll: Math.random() }),
       spendSkill: (skillId: string, mana: number, cooldown: number) =>
         dispatch({ type: "SPEND_SKILL", skillId, mana, cooldown }),
-      damageEnemy: (damage: number) => dispatch({ type: "DAMAGE_ENEMY", damage }),
-      damagePlayer: (damage: number) => dispatch({ type: "DAMAGE_PLAYER", damage }),
+      guard: () => dispatch({ type: "GUARD" }),
+      damageEnemy: (damage: number, posture: number) =>
+        dispatch({ type: "DAMAGE_ENEMY", damage, posture }),
+      enemyTurn: () =>
+        dispatch({ type: "ENEMY_TURN", damageRoll: Math.random(), intentRoll: Math.random() }),
       endCombat: () => dispatch({ type: "END_COMBAT" }),
     }),
     [],
@@ -335,5 +500,10 @@ export function useGameState() {
     [state.inventory, state.equipment],
   );
 
-  return { state, actions, bagCount, equippedItem };
+  const weaponPosture = useMemo(
+    () => postureBonus(state.equipment, state.inventory),
+    [state.equipment, state.inventory],
+  );
+
+  return { state, actions, bagCount, equippedItem, weaponPosture };
 }
