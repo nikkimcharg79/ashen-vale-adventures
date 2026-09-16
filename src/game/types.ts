@@ -2,14 +2,7 @@ export type ItemCategory = "Weapons" | "Armor" | "Consumables" | "Materials" | "
 export type ItemRarity = "common" | "uncommon" | "rare" | "epic";
 
 export type EquipSlot =
-  | "weapon"
-  | "armor"
-  | "head"
-  | "gloves"
-  | "boots"
-  | "necklace"
-  | "ring1"
-  | "ring2";
+  "weapon" | "armor" | "head" | "gloves" | "boots" | "necklace" | "ring1" | "ring2";
 
 export type EquipmentSlots = Record<EquipSlot, string | null>;
 

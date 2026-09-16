@@ -41,14 +41,7 @@ const rarityClass: Record<Item["rarity"], string> = {
   epic: "rarity-epic",
 };
 
-const chatTabs: Array<"All" | LogChannel> = [
-  "All",
-  "Nearby",
-  "World",
-  "Party",
-  "Combat",
-  "System",
-];
+const chatTabs: Array<"All" | LogChannel> = ["All", "Nearby", "World", "Party", "Combat", "System"];
 
 type Overlay = "character" | "adventure" | "combat" | "hub" | "chronicle" | null;
 
@@ -288,8 +281,16 @@ export function GameClient() {
         {panelTitle("Equipment", <Shield />)}
         <div className="equipment-body">
           <div className="equip-slots left-slots">
-            <EquipSlotView icon="⚔" active={Boolean(equipment.weapon)} label={weapon?.name ?? "Weapon — empty"} />
-            <EquipSlotView icon="♜" active={Boolean(equipment.armor)} label={armor?.name ?? "Armor — empty"} />
+            <EquipSlotView
+              icon="⚔"
+              active={Boolean(equipment.weapon)}
+              label={weapon?.name ?? "Weapon — empty"}
+            />
+            <EquipSlotView
+              icon="♜"
+              active={Boolean(equipment.armor)}
+              label={armor?.name ?? "Armor — empty"}
+            />
             <EquipSlotView icon="♢" active={Boolean(equipment.head)} label="Head — empty" />
             <EquipSlotView icon="♧" active={Boolean(equipment.gloves)} label="Gloves — empty" />
           </div>
@@ -512,8 +513,13 @@ export function GameClient() {
           <Button
             className="gold-button"
             onClick={() => {
-              actions.addLog("Party", `You raised your lantern for ${listing.title} (${listing.slots}).`);
-              actions.setNotice(`A recruiter waves you toward the ${listing.title} gathering stone.`);
+              actions.addLog(
+                "Party",
+                `You raised your lantern for ${listing.title} (${listing.slots}).`,
+              );
+              actions.setNotice(
+                `A recruiter waves you toward the ${listing.title} gathering stone.`,
+              );
             }}
           >
             Join
@@ -568,7 +574,12 @@ export function GameClient() {
             <span>{staggered ? "STAGGERED" : "INTENT"}</span>
             <strong>{staggered ? "Vulnerable — 1.75× critical" : enemy.intent.telegraph}</strong>
           </div>
-          <Meter value={enemy.hp} max={enemy.maxHp} kind="enemy" label={`HP ${enemy.hp}/${enemy.maxHp}`} />
+          <Meter
+            value={enemy.hp}
+            max={enemy.maxHp}
+            kind="enemy"
+            label={`HP ${enemy.hp}/${enemy.maxHp}`}
+          />
           <Meter
             value={enemy.posture}
             max={enemy.maxPosture}
@@ -582,7 +593,9 @@ export function GameClient() {
                 key={skill.id}
                 variant="ghost"
                 className="combat-action"
-                disabled={mp < skill.mana || (cooldowns[skill.id] ?? 0) > 0 || Boolean(combatResult)}
+                disabled={
+                  mp < skill.mana || (cooldowns[skill.id] ?? 0) > 0 || Boolean(combatResult)
+                }
                 onClick={() => activateSkill(skill.id)}
               >
                 <span className="skill-art">{skill.icon}</span>
@@ -895,7 +908,6 @@ export function GameClient() {
           </span>
         </div>
       </section>
-
     </main>
   );
 }

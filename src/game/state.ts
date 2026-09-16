@@ -96,10 +96,7 @@ function chronicle(state: GameState, id: string, title: string, detail: string):
   if (state.chronicle.some((entry) => entry.id === id)) return state;
   return {
     ...state,
-    chronicle: [
-      ...state.chronicle,
-      { id, title, detail, timestamp: Date.now() + ++chronicleSeed },
-    ],
+    chronicle: [...state.chronicle, { id, title, detail, timestamp: Date.now() + ++chronicleSeed }],
   };
 }
 
