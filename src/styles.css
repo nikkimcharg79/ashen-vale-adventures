@@ -882,7 +882,7 @@
 }
 .chat-tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   height: 27px;
   border-bottom: 1px solid var(--border);
 }
@@ -1030,6 +1030,287 @@
   line-height: 8px;
   text-shadow: 0 1px 1px oklch(0 0 0);
 }
+.meter.posture > div {
+  background: linear-gradient(180deg, oklch(0.82 0.15 92), oklch(0.5 0.12 84));
+}
+
+.intent-tag {
+  margin-top: 5px;
+  padding: 2px 6px;
+  border: 1px solid oklch(0.5 0.13 78 / 70%);
+  background: oklch(0.14 0.05 60 / 85%);
+  color: oklch(0.88 0.13 84);
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.enemy-card.staggered {
+  border-color: oklch(0.8 0.16 90);
+  animation: combat-pulse 1.1s ease-in-out infinite;
+}
+.enemy-card.staggered .intent-tag {
+  border-color: oklch(0.8 0.16 90);
+  color: oklch(0.93 0.15 92);
+}
+
+.hub-marker {
+  position: absolute;
+  z-index: 6;
+  left: 24px;
+  bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 14px;
+  border: 2px ridge oklch(0.46 0.09 62);
+  background: oklch(0.08 0.02 245 / 88%);
+  max-width: 260px;
+}
+.hub-marker strong {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: oklch(0.89 0.11 82);
+}
+.hub-marker small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+
+.equip-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 12px 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  background: oklch(0.07 0.018 245 / 90%);
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.equip-tooltip strong {
+  font-family: var(--font-display);
+  font-size: 11px;
+}
+
+.item-stats.compare span {
+  color: oklch(0.83 0.1 84);
+}
+
+.floating-drawer {
+  position: fixed;
+  z-index: 85;
+  top: 50%;
+  left: 50%;
+  width: min(94vw, 420px);
+  max-height: min(78svh, 640px);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  animation: scale-in 0.18s ease-out;
+}
+.floating-drawer .drawer-close {
+  display: inline-flex;
+  position: sticky;
+  float: right;
+  top: 6px;
+  right: 6px;
+  color: var(--foreground);
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.hub-panel,
+.chronicle-panel,
+.combat-panel {
+  padding-bottom: 12px;
+}
+.hub-hint {
+  padding: 8px 14px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.hub-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px 4px;
+  color: oklch(0.87 0.1 80);
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.hub-subtitle svg {
+  width: 13px;
+  height: 13px;
+}
+.board-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 12px 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  background: oklch(0.09 0.02 245 / 88%);
+}
+.board-row strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: oklch(0.9 0.09 82);
+}
+.board-row small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.board-row .gold-button {
+  height: 24px;
+  padding: 0 12px;
+  font-size: 10px;
+}
+.npc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 24px);
+  margin: 0 12px 6px;
+  padding: 7px 10px;
+  height: auto;
+  justify-content: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: oklch(0.09 0.02 245 / 88%);
+  text-align: left;
+}
+.npc-row strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: oklch(0.9 0.09 82);
+}
+.npc-row small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.npc-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: 1px solid oklch(0.44 0.08 62);
+  background: oklch(0.13 0.03 250);
+  color: oklch(0.88 0.12 82);
+  font-size: 15px;
+}
+.npc-row > svg {
+  margin-left: auto;
+  color: var(--muted-foreground);
+}
+
+.chronicle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 8px 14px 4px;
+  list-style: none;
+}
+.chronicle-list li {
+  position: relative;
+  padding-left: 14px;
+  border-left: 1px solid oklch(0.4 0.07 62);
+}
+.chronicle-list li::before {
+  content: "◆";
+  position: absolute;
+  left: -6px;
+  top: 0;
+  color: oklch(0.82 0.14 82);
+  font-size: 9px;
+}
+.chronicle-list strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: oklch(0.9 0.09 82);
+}
+.chronicle-list small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  line-height: 1.3;
+}
+
+.combat-trait {
+  padding: 6px 14px 2px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.intent-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 12px;
+  padding: 7px 10px;
+  border: 1px solid oklch(0.5 0.13 78 / 75%);
+  background: oklch(0.13 0.045 62 / 88%);
+}
+.intent-badge span {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: oklch(0.8 0.11 80);
+}
+.intent-badge strong {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: oklch(0.92 0.12 86);
+}
+.combat-panel .meter {
+  margin: 4px 12px;
+  height: 12px;
+}
+.combat-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 0;
+}
+.combat-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: auto;
+  justify-content: flex-start;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: oklch(0.09 0.02 245 / 90%);
+  text-align: left;
+}
+.combat-action strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: oklch(0.9 0.09 82);
+}
+.combat-action small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.combat-action kbd {
+  margin-left: auto;
+  padding: 1px 5px;
+  border: 1px solid oklch(0.42 0.07 62);
+  background: oklch(0.12 0.02 250);
+  color: oklch(0.86 0.08 80);
+  font-size: 9px;
+}
+.guard-slot {
+  border-color: oklch(0.55 0.11 218) !important;
+}
+
 .mobile-controls,
 .drawer-close,
 .drawer-scrim {
@@ -1198,11 +1479,14 @@
     left: 10px;
     right: 10px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
   .mobile-controls button {
-    height: 34px;
+    flex: 1 1 88px;
+    height: 32px;
+    padding: 0 6px;
     border: 1px solid var(--border);
     border-radius: 2px;
     background: oklch(0.08 0.02 245 / 88%);

@@ -670,6 +670,22 @@ export function GameClient() {
           </span>
         </div>
         <div className="utilities">
+          <Button
+            variant="ghost"
+            size="icon"
+            title="The Lantern District"
+            onClick={() => setOverlay("hub")}
+          >
+            <Landmark />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Character Chronicle"
+            onClick={() => setOverlay("chronicle")}
+          >
+            <ScrollText />
+          </Button>
           <Button variant="ghost" size="icon" title="Messages">
             <MessageSquare />
           </Button>
@@ -880,10 +896,6 @@ export function GameClient() {
         </div>
       </section>
 
-      <div className="desktop-extras">
-        <LanternPanel />
-        <ChroniclePanel />
-      </div>
     </main>
   );
 }
