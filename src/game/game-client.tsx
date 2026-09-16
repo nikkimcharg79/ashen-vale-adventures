@@ -810,6 +810,7 @@ export function GameClient() {
             className="drawer-close"
             variant="ghost"
             size="icon"
+            aria-label="Close panel"
             onClick={() => setOverlay(null)}
           >
             <X />

@@ -938,8 +938,8 @@
   z-index: 30;
   left: 50%;
   bottom: 10px;
-  width: min(480px, calc(100vw - 660px));
-  min-width: 405px;
+  width: min(520px, calc(100vw - 640px));
+  min-width: 450px;
   padding: 8px 15px 4px;
   transform: translateX(-50%);
   border: 5px ridge oklch(0.37 0.065 55);
@@ -949,7 +949,7 @@
 }
 .hotbar {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 4px;
 }
 .skill-slot {
@@ -1104,15 +1104,17 @@
   top: 50%;
   left: 50%;
   width: min(94vw, 420px);
-  max-height: min(78svh, 640px);
-  overflow-y: auto;
   transform: translate(-50%, -50%);
   animation: scale-in 0.18s ease-out;
 }
+.floating-drawer > .game-panel {
+  max-height: min(78svh, 640px);
+  overflow-y: auto;
+}
 .floating-drawer .drawer-close {
   display: inline-flex;
-  position: sticky;
-  float: right;
+  position: absolute;
+  z-index: 90;
   top: 6px;
   right: 6px;
   color: var(--foreground);
