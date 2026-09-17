@@ -970,7 +970,7 @@ function EquipSlotView({
   active = false,
   label,
 }: {
-  itemId?: string;
+  itemId?: string | undefined;
   icon: string;
   active?: boolean;
   label?: string | undefined;
