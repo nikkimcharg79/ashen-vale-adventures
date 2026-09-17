@@ -102,15 +102,24 @@ export function GameClient() {
   const image = characterImages[equipment.weapon ?? ""] ?? nikkiMoonsteel;
   const visibleItems = inventory.filter((item) => {
     if (category === "All") return true;
-    if (category === "Supplies") return item.category === "Consumables" || item.category === "Materials";
+    if (category === "Supplies")
+      return item.category === "Consumables" || item.category === "Materials";
     if (category === "Other") return false;
     return item.category === category;
   });
-  const inventoryCells = [...visibleItems, ...Array<null>(Math.max(0, 20 - visibleItems.length)).fill(null)].slice(0, 20);
+  const inventoryCells = [
+    ...visibleItems,
+    ...Array<null>(Math.max(0, 20 - visibleItems.length)).fill(null),
+  ].slice(0, 20);
   const hotbarSkills = ["quick", "power", "moonveil", "shadow", "guard"]
     .map((id) => skills.find((skill) => skill.id === id))
     .filter((skill): skill is (typeof skills)[number] => Boolean(skill));
-  const visibleLogs = chatTab === "All" ? logs : chatTab === "Guild" ? [] : logs.filter((log) => log.channel === chatTab);
+  const visibleLogs =
+    chatTab === "All"
+      ? logs
+      : chatTab === "Guild"
+        ? []
+        : logs.filter((log) => log.channel === chatTab);
   const xpPercent = Math.min(100, Math.floor((xp / maxXp) * 100));
 
   const startCombat = (index?: number) => {
@@ -329,7 +338,12 @@ export function GameClient() {
             />
             <EquipSlotView icon="♧" active={Boolean(equipment.gloves)} label="Gloves — empty" />
             <EquipSlotView icon="♙" label="Greaves — empty" />
-            <EquipSlotView itemId={equipment.boots ?? undefined} icon="♞" active={Boolean(equipment.boots)} label={equippedItem("boots")?.name ?? "Boots — empty"} />
+            <EquipSlotView
+              itemId={equipment.boots ?? undefined}
+              icon="♞"
+              active={Boolean(equipment.boots)}
+              label={equippedItem("boots")?.name ?? "Boots — empty"}
+            />
           </div>
           <img
             className="equipment-character"
@@ -337,7 +351,12 @@ export function GameClient() {
             alt={`${character.name} equipped with ${weapon?.name ?? "no weapon"}`}
           />
           <div className="equip-slots right-slots">
-            <EquipSlotView itemId="necklace" icon="◇" active={Boolean(equipment.necklace)} label="Necklace — empty" />
+            <EquipSlotView
+              itemId="necklace"
+              icon="◇"
+              active={Boolean(equipment.necklace)}
+              label="Necklace — empty"
+            />
             <EquipSlotView itemId="bracers" icon="◫" label="Bracers — empty" />
             <EquipSlotView icon="◆" label="Relic — empty" />
             <EquipSlotView icon="◈" active={Boolean(equipment.ring1)} label="Ring — empty" />
@@ -391,10 +410,17 @@ export function GameClient() {
                 onClick={() => setSelected(item)}
                 title={item.name}
               >
-                <span className={`item-art ${itemArt[item.id] ?? "item-art-fallback"}`} style={{ backgroundImage: `url(${itemAtlas})` }}><i>{item.icon}</i></span>
+                <span
+                  className={`item-art ${itemArt[item.id] ?? "item-art-fallback"}`}
+                  style={{ backgroundImage: `url(${itemAtlas})` }}
+                >
+                  <i>{item.icon}</i>
+                </span>
                 {item.count > 1 && <small>{item.count}</small>}
               </Button>
-            ) : <span className="item-slot empty" key={`empty-${index}`} />,
+            ) : (
+              <span className="item-slot empty" key={`empty-${index}`} />
+            ),
           )}
         </div>
         {selected && (
@@ -457,60 +483,71 @@ export function GameClient() {
         </div>
       </div>
       <section className="game-panel adventure-feed">
-        {panelTitle("Adventure Feed", "❧", <span className="panel-controls"><Button variant="ghost" onClick={() => setFeedCollapsed((value) => !value)}>{feedCollapsed ? "+" : "−"}</Button><span>×</span></span>)}
-        <div className={feedCollapsed ? "feed-body collapsed" : "feed-body"}>
-        <div className="narrative">
-          <p>{activeLocation.notice}</p>
-          <p>
-            {inHub
-              ? "Traders call out from the market stalls while teahouse lanterns sway overhead."
-              : "The air is cool and the scent of cherry blossoms fills the wind."}
-          </p>
-        </div>
-        <ActionCard
-          icon="✥"
-          title="Explore the area"
-          subtitle="Look for resources, secrets or encounters."
-          onClick={explore}
-        />
-        <ActionCard
-          icon="⚔"
-          title="Hunt Bandits"
-          subtitle="Defeat the outlaws and claim their loot."
-          onClick={() => startCombat(Math.random() < 0.5 ? 0 : 1)}
-        />
-        <ActionCard
-          icon="❧"
-          title="Gather Resources"
-          subtitle="Collect herbs, ore or silverleaf."
-          onClick={gather}
-        />
-        {inHub ? (
-          <ActionCard
-            icon="↑"
-            title="Return to Moonlit Ridge"
-            subtitle="Back up the pass to the hunting grounds."
-            onClick={() => {
-              actions.travel("moonlit-ridge");
-              actions.setNotice("The pass is quiet again. Only wind and distant water.");
-            }}
-          />
-        ) : (
-          <ActionCard
-            icon="介"
-            title="Travel to The Lantern District"
-            subtitle="Descend into the temple city's social hub."
-            onClick={() => {
-              actions.travel("lantern-district");
-              actions.addLog("Nearby", "Lantern Keeper Oakhaven: Welcome back, wanderer.");
-              setOverlay(null);
-            }}
-          />
+        {panelTitle(
+          "Adventure Feed",
+          "❧",
+          <span className="panel-controls">
+            <Button variant="ghost" onClick={() => setFeedCollapsed((value) => !value)}>
+              {feedCollapsed ? "+" : "−"}
+            </Button>
+            <span>×</span>
+          </span>,
         )}
+        <div className={feedCollapsed ? "feed-body collapsed" : "feed-body"}>
+          <div className="narrative">
+            <p>{activeLocation.notice}</p>
+            <p>
+              {inHub
+                ? "Traders call out from the market stalls while teahouse lanterns sway overhead."
+                : "The air is cool and the scent of cherry blossoms fills the wind."}
+            </p>
+          </div>
+          <ActionCard
+            icon="✥"
+            title="Explore the area"
+            subtitle="Look for resources, secrets or encounters."
+            onClick={explore}
+          />
+          <ActionCard
+            icon="⚔"
+            title="Hunt Bandits"
+            subtitle="Defeat the outlaws and claim their loot."
+            onClick={() => startCombat(Math.random() < 0.5 ? 0 : 1)}
+          />
+          <ActionCard
+            icon="❧"
+            title="Gather Resources"
+            subtitle="Collect herbs, ore or silverleaf."
+            onClick={gather}
+          />
+          {inHub ? (
+            <ActionCard
+              icon="↑"
+              title="Return to Moonlit Ridge"
+              subtitle="Back up the pass to the hunting grounds."
+              onClick={() => {
+                actions.travel("moonlit-ridge");
+                actions.setNotice("The pass is quiet again. Only wind and distant water.");
+              }}
+            />
+          ) : (
+            <ActionCard
+              icon="介"
+              title="Travel to The Lantern District"
+              subtitle="Descend into the temple city's social hub."
+              onClick={() => {
+                actions.travel("lantern-district");
+                actions.addLog("Nearby", "Lantern Keeper Oakhaven: Welcome back, wanderer.");
+                setOverlay(null);
+              }}
+            />
+          )}
         </div>
       </section>
       <section className="quest-card game-panel">
-        <div className="quest-icon"><span className="item-art item-art-13" style={{ backgroundImage: `url(${itemAtlas})` }} /></div>
+        <div className="quest-icon">
+          <span className="item-art item-art-13" style={{ backgroundImage: `url(${itemAtlas})` }} />
+        </div>
         <div>
           <span>{activeQuest.label}</span>
           <strong>{activeQuest.title}</strong>
@@ -627,7 +664,12 @@ export function GameClient() {
                 }
                 onClick={() => activateSkill(skill.id)}
               >
-                <span className={`skill-art ${skillArt[skill.id]}`} style={{ backgroundImage: `url(${skillAtlas})` }}><i>{skill.icon}</i></span>
+                <span
+                  className={`skill-art ${skillArt[skill.id]}`}
+                  style={{ backgroundImage: `url(${skillAtlas})` }}
+                >
+                  <i>{skill.icon}</i>
+                </span>
                 <span>
                   <strong>{skill.name}</strong>
                   <small>{skill.description}</small>
@@ -643,7 +685,10 @@ export function GameClient() {
                 if (potion) interactItem(potion);
               }}
             >
-              <span className="skill-art skill-art-5" style={{ backgroundImage: `url(${skillAtlas})` }} />
+              <span
+                className="skill-art skill-art-5"
+                style={{ backgroundImage: `url(${skillAtlas})` }}
+              />
               <span>
                 <strong>Crimson Potion</strong>
                 <small>Quick-use health restoration.</small>
@@ -658,7 +703,10 @@ export function GameClient() {
                 if (potion) interactItem(potion);
               }}
             >
-              <span className="skill-art skill-art-6" style={{ backgroundImage: `url(${skillAtlas})` }} />
+              <span
+                className="skill-art skill-art-6"
+                style={{ backgroundImage: `url(${skillAtlas})` }}
+              />
               <span>
                 <strong>Silverleaf Potion</strong>
                 <small>Quick-use mana restoration.</small>
@@ -714,9 +762,15 @@ export function GameClient() {
           </span>
         </div>
         <div className="utilities">
-          <Button variant="ghost" size="icon" title="Messages">✉</Button>
-          <Button variant="ghost" size="icon" title="Settings">⚙</Button>
-          <Button variant="ghost" size="icon" title="Menu" onClick={() => setOverlay("chronicle")}>☰</Button>
+          <Button variant="ghost" size="icon" title="Messages">
+            ✉
+          </Button>
+          <Button variant="ghost" size="icon" title="Settings">
+            ⚙
+          </Button>
+          <Button variant="ghost" size="icon" title="Menu" onClick={() => setOverlay("chronicle")}>
+            ☰
+          </Button>
         </div>
       </header>
 
@@ -744,11 +798,21 @@ export function GameClient() {
       </div>
 
       <nav className="utility-rail" aria-label="Game utilities">
-        <Button variant="ghost" title="World Map" onClick={() => setOverlay("adventure")}><span>⌖</span></Button>
-        <Button variant="ghost" title="Quest Log" onClick={() => setOverlay("chronicle")}><span>▤</span></Button>
-        <Button variant="ghost" title="Combat" onClick={() => setOverlay("combat")}><span>⚔</span></Button>
-        <Button variant="ghost" title="Skills" onClick={() => setOverlay("combat")}><span>✺</span></Button>
-        <Button variant="ghost" title="Guild" onClick={() => setOverlay("hub")}><span>♜</span></Button>
+        <Button variant="ghost" title="World Map" onClick={() => setOverlay("adventure")}>
+          <span>⌖</span>
+        </Button>
+        <Button variant="ghost" title="Quest Log" onClick={() => setOverlay("chronicle")}>
+          <span>▤</span>
+        </Button>
+        <Button variant="ghost" title="Combat" onClick={() => setOverlay("combat")}>
+          <span>⚔</span>
+        </Button>
+        <Button variant="ghost" title="Skills" onClick={() => setOverlay("combat")}>
+          <span>✺</span>
+        </Button>
+        <Button variant="ghost" title="Guild" onClick={() => setOverlay("hub")}>
+          <span>♜</span>
+        </Button>
         <span className="rail-tassel">◆</span>
       </nav>
 
@@ -895,7 +959,12 @@ export function GameClient() {
               onClick={() => activateSkill(skill.id)}
               title={`${skill.name} · ${skill.mana} MP · ${skill.description}`}
             >
-              <span className={`skill-art ${skillArt[skill.id]}`} style={{ backgroundImage: `url(${skillAtlas})` }}><i>{skill.icon}</i></span>
+              <span
+                className={`skill-art ${skillArt[skill.id]}`}
+                style={{ backgroundImage: `url(${skillAtlas})` }}
+              >
+                <i>{skill.icon}</i>
+              </span>
               <kbd>{skill.key}</kbd>
               {skill.mana > 0 && <small>{skill.mana}</small>}
               {(cooldowns[skill.id] ?? 0) > 0 && <i>{cooldowns[skill.id]}</i>}
@@ -910,16 +979,25 @@ export function GameClient() {
             }}
             title="Crimson Potion"
           >
-            <span className="skill-art skill-art-5" style={{ backgroundImage: `url(${skillAtlas})` }} />
+            <span
+              className="skill-art skill-art-5"
+              style={{ backgroundImage: `url(${skillAtlas})` }}
+            />
             <kbd>W</kbd>
             <small>{inventory.find((item) => item.id === "health-potion")?.count ?? 0}</small>
           </Button>
           <Button variant="ghost" className="skill-slot" onClick={gather} title="Gather">
-            <span className="skill-art skill-art-6" style={{ backgroundImage: `url(${skillAtlas})` }} />
+            <span
+              className="skill-art skill-art-6"
+              style={{ backgroundImage: `url(${skillAtlas})` }}
+            />
             <kbd>E</kbd>
           </Button>
           <Button variant="ghost" className="skill-slot" onClick={explore} title="Explore">
-            <span className="skill-art skill-art-7" style={{ backgroundImage: `url(${skillAtlas})` }} />
+            <span
+              className="skill-art skill-art-7"
+              style={{ backgroundImage: `url(${skillAtlas})` }}
+            />
             <kbd>R</kbd>
           </Button>
         </div>
@@ -966,7 +1044,16 @@ function EquipSlotView({
 }) {
   return (
     <div className={`equip-slot ${active ? "active" : ""}`} title={label}>
-      {itemId && itemArt[itemId] ? <span className={`item-art ${itemArt[itemId]}`} style={{ backgroundImage: `url(${itemAtlas})` }}><i>{icon}</i></span> : <span className="empty-equip-glyph">{icon}</span>}
+      {itemId && itemArt[itemId] ? (
+        <span
+          className={`item-art ${itemArt[itemId]}`}
+          style={{ backgroundImage: `url(${itemAtlas})` }}
+        >
+          <i>{icon}</i>
+        </span>
+      ) : (
+        <span className="empty-equip-glyph">{icon}</span>
+      )}
     </div>
   );
 }
@@ -989,7 +1076,7 @@ function ActionCard({
         <strong>{title}</strong>
         <small>{subtitle}</small>
       </span>
-       <span className="gold-chevron">›</span>
+      <span className="gold-chevron">›</span>
     </Button>
   );
 }
