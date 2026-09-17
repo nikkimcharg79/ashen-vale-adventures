@@ -1928,9 +1928,10 @@
 @media (max-width: 760px) {
   .topbar { height: 57px; grid-template-columns: minmax(0, 1fr) auto; }
   .brand { padding-left: 8px; font-size: inherit; }
-  .brand h1 { font-size: 17px; }
+  .brand h1 { font-size: 15px; white-space: nowrap; }
   .brand-creature { font-size: 21px; }
   .brand-seal { width: 15px; height: 20px; font-size: 8px; }
+  .location { display: none; }
   .currencies .currency { min-width: 0; padding: 0 6px; }
   .currency i { width: 15px; font-size: 14px; }
   .desktop-left { width: min(92vw, 350px); }

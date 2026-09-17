@@ -125,7 +125,7 @@ export const initialItems: Item[] = [
     category: "Materials",
     icon: "☘",
     rarity: "common",
-    count: 3,
+    count: 7,
     description: "A hardy medicinal herb from the ridge.",
   },
   {

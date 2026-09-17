@@ -26,7 +26,8 @@ const rarityClass: Record<Item["rarity"], string> = {
   epic: "rarity-epic",
 };
 
-const chatTabs: Array<"All" | LogChannel> = ["All", "Nearby", "World", "Party", "Combat", "System"];
+type ChatTab = "All" | LogChannel | "Guild";
+const chatTabs: ChatTab[] = ["All", "World", "Party", "Guild", "System"];
 
 const inventoryTabs = [
   { label: "All", value: "All", icon: "✥" },
@@ -82,7 +83,7 @@ export function GameClient() {
   } = state;
   const [selected, setSelected] = useState<Item | null>(null);
   const [category, setCategory] = useState("All");
-  const [chatTab, setChatTab] = useState<"All" | LogChannel>("All");
+  const [chatTab, setChatTab] = useState<ChatTab>("All");
   const [chatInput, setChatInput] = useState("");
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [feedCollapsed, setFeedCollapsed] = useState(false);
@@ -109,7 +110,7 @@ export function GameClient() {
   const hotbarSkills = ["quick", "power", "moonveil", "shadow", "guard"]
     .map((id) => skills.find((skill) => skill.id === id))
     .filter((skill): skill is (typeof skills)[number] => Boolean(skill));
-  const visibleLogs = chatTab === "All" ? logs : logs.filter((log) => log.channel === chatTab);
+  const visibleLogs = chatTab === "All" ? logs : chatTab === "Guild" ? [] : logs.filter((log) => log.channel === chatTab);
   const xpPercent = Math.min(100, Math.floor((xp / maxXp) * 100));
 
   const startCombat = (index?: number) => {
@@ -474,21 +475,9 @@ export function GameClient() {
         />
         <ActionCard
           icon="⚔"
-          title="Hunt Dagger Bandits"
-          subtitle="Fast, evasive outlaws with thin posture."
-          onClick={() => startCombat(0)}
-        />
-        <ActionCard
-          icon="⚒"
-          title="Hunt Mace Bandits"
-          subtitle="Heavy armour crushers — parry their windup."
-          onClick={() => startCombat(1)}
-        />
-        <ActionCard
-          icon="♜"
-          title="Challenge the Hollow Guardian"
-          subtitle="Armoured construct with enormous posture."
-          onClick={() => startCombat(2)}
+          title="Hunt Bandits"
+          subtitle="Defeat the outlaws and claim their loot."
+          onClick={() => startCombat(Math.random() < 0.5 ? 0 : 1)}
         />
         <ActionCard
           icon="❧"
