@@ -89,7 +89,6 @@ export function GameClient() {
   const [chatInput, setChatInput] = useState("");
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [feedCollapsed, setFeedCollapsed] = useState(false);
-  const [combatLogExpanded, setCombatLogExpanded] = useState(false);
   const [npcInteraction, setNpcInteraction] = useState<string | null>(null);
 
   const weapon = equippedItem("weapon");
@@ -907,17 +906,17 @@ export function GameClient() {
       </section>
 
       {enemy && <section className="mobile-combat-dock" aria-label="Combat actions">
-        <Button onClick={() => activateSkill("guard")} disabled={mp < 8 || (cooldowns.guard ?? 0) > 0} aria-label="Guard or Parry">
-          <span className="skill-art skill-art-4" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Guard</strong><small>{cooldowns.guard ? `${cooldowns.guard}s` : "8 MP"}</small>
+        <Button onClick={() => activateSkill("guard")} disabled={mp < 8 || (cooldowns["guard"] ?? 0) > 0} aria-label="Guard or Parry">
+          <span className="skill-art skill-art-4" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Guard</strong><small>{cooldowns["guard"] ? `${cooldowns["guard"]}s` : "8 MP"}</small>
         </Button>
         <Button onClick={() => activateSkill("quick")} aria-label="Quick Slash">
           <span className="skill-art skill-art-0" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Quick</strong><small>0 MP</small>
         </Button>
-        <Button onClick={() => activateSkill("power")} disabled={mp < 24 || (cooldowns.power ?? 0) > 0} aria-label="Power Strike">
-          <span className="skill-art skill-art-1" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Power</strong><small>{cooldowns.power ? `${cooldowns.power}s` : "24 MP"}</small>
+        <Button onClick={() => activateSkill("power")} disabled={mp < 24 || (cooldowns["power"] ?? 0) > 0} aria-label="Power Strike">
+          <span className="skill-art skill-art-1" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Power</strong><small>{cooldowns["power"] ? `${cooldowns["power"]}s` : "24 MP"}</small>
         </Button>
-        <Button onClick={() => activateSkill("moonveil")} disabled={mp < 36 || (cooldowns.moonveil ?? 0) > 0} aria-label="Moonveil">
-          <span className="skill-art skill-art-2" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Moonveil</strong><small>{cooldowns.moonveil ? `${cooldowns.moonveil}s` : "36 MP"}</small>
+        <Button onClick={() => activateSkill("moonveil")} disabled={mp < 36 || (cooldowns["moonveil"] ?? 0) > 0} aria-label="Moonveil">
+          <span className="skill-art skill-art-2" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Moonveil</strong><small>{cooldowns["moonveil"] ? `${cooldowns["moonveil"]}s` : "36 MP"}</small>
         </Button>
         <Button onClick={() => { const potion = inventory.find((item) => item.id === "health-potion"); if (potion) interactItem(potion); }} aria-label="Use Crimson Potion">
           <span className="skill-art skill-art-5" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Potion</strong><small>×{inventory.find((item) => item.id === "health-potion")?.count ?? 0}</small>
@@ -925,7 +924,7 @@ export function GameClient() {
         <Button onClick={() => actions.retreat()} aria-label="Retreat from combat"><span className="retreat-glyph">↶</span><strong>Retreat</strong><small>Withdraw</small></Button>
       </section>}
 
-      {enemy && latestCombatLog && <Button variant="ghost" className="combat-ticker" onClick={() => { setCombatLogExpanded(true); setOverlay("ledger"); }}>
+      {enemy && latestCombatLog && <Button variant="ghost" className="combat-ticker" onClick={() => setOverlay("ledger")}>
         <span>⚔</span><span>{latestCombatLog.text}</span><strong>▴</strong>
       </Button>}
 
