@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { useAdaptiveClient } from "@/hooks/use-adaptive-client";
 import moonlitRidge from "@/assets/moonlit-ridge.jpg";
 import lanternDistrict from "@/assets/lantern-district.jpg";
 import itemAtlas from "@/assets/item-atlas.jpg";
@@ -66,9 +67,10 @@ const skillArt: Record<string, string> = {
   explore: "skill-art-7",
 };
 
-type Overlay = "character" | "adventure" | "combat" | "hub" | "chronicle" | null;
+type Overlay = "character" | "bag" | "adventure" | "combat" | "hub" | "chronicle" | "ledger" | null;
 
 export function GameClient() {
+  const { mode, isMobile } = useAdaptiveClient();
   const { state, actions, bagCount, equippedItem, weaponPosture } = useGameState();
   const {
     character,
@@ -87,6 +89,8 @@ export function GameClient() {
   const [chatInput, setChatInput] = useState("");
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [feedCollapsed, setFeedCollapsed] = useState(false);
+  const [combatLogExpanded, setCombatLogExpanded] = useState(false);
+  const [npcInteraction, setNpcInteraction] = useState<string | null>(null);
 
   const weapon = equippedItem("weapon");
   const armor = equippedItem("armor");
@@ -121,6 +125,8 @@ export function GameClient() {
         ? []
         : logs.filter((log) => log.channel === chatTab);
   const xpPercent = Math.min(100, Math.floor((xp / maxXp) * 100));
+  const combatLogs = logs.filter((log) => log.channel === "Combat");
+  const latestCombatLog = combatLogs.at(-1);
 
   const startCombat = (index?: number) => {
     const base = enemies[index ?? Math.floor(Math.random() * enemies.length)] ?? enemies[0]!;
@@ -295,6 +301,17 @@ export function GameClient() {
     return () => window.clearInterval(timer);
   }, [inHub, actions]);
 
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (npcInteraction) setNpcInteraction(null);
+      else if (selected) setSelected(null);
+      else setOverlay(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [npcInteraction, selected]);
+
   const panelTitle = (title: string, icon?: ReactNode, controls?: ReactNode) => (
     <div className="panel-title">
       <span className="panel-title-emblem">{icon}</span>
@@ -304,9 +321,9 @@ export function GameClient() {
     </div>
   );
 
-  const CharacterPanel = () => (
+  const CharacterPanel = ({ section = "all" }: { section?: "all" | "character" | "bag" }) => (
     <aside className="character-panel game-panel">
-      <section className="player-card">
+      {section !== "bag" && <section className="player-card">
         <div className="portrait">
           <img src={image} alt={`${character.name} portrait`} />
           <span className="level-medallion">{character.level}</span>
@@ -319,8 +336,8 @@ export function GameClient() {
           <Meter value={hp} max={maxHp} kind="health" label={`${hp}/${maxHp}`} />
           <Meter value={mp} max={maxMp} kind="mana" label={`${mp}/${maxMp}`} />
         </div>
-      </section>
-      <section className="equipment-section">
+      </section>}
+      {section !== "bag" && <section className="equipment-section">
         {panelTitle("Equipment", "❖", <span className="panel-close">×</span>)}
         <div className="equipment-body">
           <div className="equip-slots left-slots">
@@ -384,8 +401,8 @@ export function GameClient() {
             CRIT <b>{crit}%</b>
           </span>
         </div>
-      </section>
-      <section className="inventory-section">
+      </section>}
+      {section !== "character" && <section className="inventory-section">
         {panelTitle("Inventory", "▣")}
         <div className="inventory-tabs">
           {inventoryTabs.map((tab) => (
@@ -459,7 +476,7 @@ export function GameClient() {
         <div className="bag-count">
           <span>▰</span> {bagCount}/{state.bagCapacity}
         </div>
-      </section>
+      </section>}
     </aside>
   );
 
@@ -604,6 +621,7 @@ export function GameClient() {
             const line = npc.lines[Math.floor(Math.random() * npc.lines.length)]!;
             actions.addLog("Nearby", line);
             actions.setNotice(line);
+             setNpcInteraction(line);
           }}
         >
           <span className="npc-icon">{npc.icon}</span>
@@ -721,7 +739,7 @@ export function GameClient() {
   );
 
   return (
-    <main className="game-shell">
+    <main className="game-shell" data-client-mode={mode}>
       <img
         className="world-background"
         src={backdrop}
@@ -772,6 +790,21 @@ export function GameClient() {
             ☰
           </Button>
         </div>
+      </header>
+
+      <header className="mobile-identity" aria-label="Character status">
+        <div className="mobile-avatar"><img src={image} alt="" /></div>
+        <div className="mobile-vitals">
+          <div><strong>{character.name}</strong><span>Lv. {character.level} {character.classTitle}</span></div>
+          <Meter value={hp} max={maxHp} kind="health" label={`${hp}/${maxHp}`} />
+          <Meter value={mp} max={maxMp} kind="mana" label={`${mp}/${maxMp}`} />
+        </div>
+        <div className="mobile-resources">
+          <span><i className="coin-icon">◉</i>{currencies.gold.toLocaleString()}</span>
+          <span><i className="crystal-icon">♦</i>{currencies.crystals.toLocaleString()}</span>
+          <span><i className="bag-icon">▰</i>{bagCount}/{state.bagCapacity}</span>
+        </div>
+        <div className="mobile-location"><span>✥</span><strong>{activeLocation.name}</strong><small>{activeLocation.region}</small></div>
       </header>
 
       <div className={`desktop-left ${overlay === "character" ? "mobile-open" : ""}`}>
@@ -869,28 +902,53 @@ export function GameClient() {
         )}
       </section>
 
-      <div className="mobile-controls">
-        <Button onClick={() => setOverlay("character")}>
-          <span>▰</span> Character
+      <section className="mobile-quest-preview" aria-label="Active quest">
+        <span>▤</span><div><strong>{activeQuest.title}</strong><small>{activeQuest.objective}</small></div>
+      </section>
+
+      {enemy && <section className="mobile-combat-dock" aria-label="Combat actions">
+        <Button onClick={() => activateSkill("guard")} disabled={mp < 8 || (cooldowns.guard ?? 0) > 0} aria-label="Guard or Parry">
+          <span className="skill-art skill-art-4" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Guard</strong><small>{cooldowns.guard ? `${cooldowns.guard}s` : "8 MP"}</small>
         </Button>
-        <Button onClick={() => setOverlay("adventure")}>
-          <span>⌖</span> Adventure
+        <Button onClick={() => activateSkill("quick")} aria-label="Quick Slash">
+          <span className="skill-art skill-art-0" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Quick</strong><small>0 MP</small>
         </Button>
-        <Button onClick={() => setOverlay("combat")}>
-          <span>⚔</span> Combat
+        <Button onClick={() => activateSkill("power")} disabled={mp < 24 || (cooldowns.power ?? 0) > 0} aria-label="Power Strike">
+          <span className="skill-art skill-art-1" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Power</strong><small>{cooldowns.power ? `${cooldowns.power}s` : "24 MP"}</small>
         </Button>
-        <Button onClick={() => setOverlay("hub")}>
-          <span>介</span> Lantern
+        <Button onClick={() => activateSkill("moonveil")} disabled={mp < 36 || (cooldowns.moonveil ?? 0) > 0} aria-label="Moonveil">
+          <span className="skill-art skill-art-2" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Moonveil</strong><small>{cooldowns.moonveil ? `${cooldowns.moonveil}s` : "36 MP"}</small>
         </Button>
-        <Button onClick={() => setOverlay("chronicle")}>
-          <span>▤</span> Chronicle
+        <Button onClick={() => { const potion = inventory.find((item) => item.id === "health-potion"); if (potion) interactItem(potion); }} aria-label="Use Crimson Potion">
+          <span className="skill-art skill-art-5" style={{ backgroundImage: `url(${skillAtlas})` }} /><strong>Potion</strong><small>×{inventory.find((item) => item.id === "health-potion")?.count ?? 0}</small>
         </Button>
-      </div>
-      {(overlay === "combat" || overlay === "hub" || overlay === "chronicle") && (
-        <div className="floating-drawer">
+        <Button onClick={() => actions.retreat()} aria-label="Retreat from combat"><span className="retreat-glyph">↶</span><strong>Retreat</strong><small>Withdraw</small></Button>
+      </section>}
+
+      {enemy && latestCombatLog && <Button variant="ghost" className="combat-ticker" onClick={() => { setCombatLogExpanded(true); setOverlay("ledger"); }}>
+        <span>⚔</span><span>{latestCombatLog.text}</span><strong>▴</strong>
+      </Button>}
+
+      <nav className="mobile-controls" aria-label="Primary game navigation">
+        {([
+          ["character", "♙", "Character"], ["bag", "▰", "Bag"], ["adventure", "⌖", "Adventure"],
+          ["combat", "⚔", "Combat"], ["hub", "介", "Lantern Hub"], ["chronicle", "▤", "Chronicle"],
+        ] as const).map(([target, icon, label]) => (
+          <Button key={target} variant="ghost" aria-current={overlay === target ? "page" : undefined} onClick={() => setOverlay(overlay === target ? null : target)}>
+            <span>{icon}</span><small>{label}</small>
+          </Button>
+        ))}
+      </nav>
+      {isMobile && overlay && (
+        <div className="floating-drawer mobile-bottom-sheet" role="dialog" aria-modal="true" aria-label={`${overlay} panel`}>
+          <div className="sheet-handle" aria-hidden="true" />
+          {overlay === "character" && <CharacterPanel section="character" />}
+          {overlay === "bag" && <CharacterPanel section="bag" />}
+          {overlay === "adventure" && <AdventurePanel />}
           {overlay === "combat" && <CombatPanel />}
           {overlay === "hub" && <LanternPanel />}
           {overlay === "chronicle" && <ChroniclePanel />}
+          {overlay === "ledger" && <aside className="battle-ledger game-panel">{panelTitle("Battle Ledger", "⚔")}<div className="battle-ledger-list">{combatLogs.slice().reverse().map((log) => <p key={log.id}><span>[Combat]</span> {log.text}</p>)}</div></aside>}
           <Button
             className="drawer-close"
             variant="ghost"
@@ -902,13 +960,24 @@ export function GameClient() {
           </Button>
         </div>
       )}
+      {!isMobile && (overlay === "combat" || overlay === "hub" || overlay === "chronicle" || overlay === "ledger") && (
+        <div className="floating-drawer">
+          {overlay === "combat" && <CombatPanel />}
+          {overlay === "hub" && <LanternPanel />}
+          {overlay === "chronicle" && <ChroniclePanel />}
+          {overlay === "ledger" && <aside className="battle-ledger game-panel">{panelTitle("Battle Ledger", "⚔")}<div className="battle-ledger-list">{combatLogs.slice().reverse().map((log) => <p key={log.id}><span>[Combat]</span> {log.text}</p>)}</div></aside>}
+          <Button className="drawer-close" variant="ghost" size="icon" aria-label="Close panel" onClick={() => setOverlay(null)}>×</Button>
+        </div>
+      )}
+      {npcInteraction && <div className="detail-sheet" role="dialog" aria-modal="true" aria-label="Conversation"><div className="sheet-handle" /><strong>Nearby Conversation</strong><p>{npcInteraction}</p><Button className="gold-button" onClick={() => setNpcInteraction(null)}>Continue</Button></div>}
       {overlay && (
         <button
-          className={`drawer-scrim ${overlay === "character" || overlay === "adventure" ? "" : "always-on"}`}
+           className="drawer-scrim always-on"
           aria-label="Close panel"
           onClick={() => setOverlay(null)}
         />
       )}
+      {(selected || npcInteraction) && <button className="drawer-scrim always-on detail-scrim" aria-label="Close details" onClick={() => { setSelected(null); setNpcInteraction(null); }} />}
 
       <section className="chat game-panel">
         <div className="chat-tabs">

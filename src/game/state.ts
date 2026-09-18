@@ -156,6 +156,7 @@ type Action =
   | { type: "GUARD" }
   | { type: "DAMAGE_ENEMY"; damage: number; posture: number }
   | { type: "ENEMY_TURN"; damageRoll: number; intentRoll: number }
+  | { type: "RETREAT" }
   | { type: "END_COMBAT" };
 
 function levelUp(state: GameState, amount: number): GameState {
@@ -438,6 +439,18 @@ export function gameReducer(state: GameState, action: Action): GameState {
       );
       return finish(counterLogged, counterLogged.combat.enemy ?? currentEnemy);
     }
+    case "RETREAT": {
+      const enemy = state.combat.enemy;
+      if (!enemy || state.combat.result) return state;
+      return pushLog(
+        {
+          ...state,
+          combat: { enemy: null, cooldowns: {}, result: null, guarding: false, momentum: 0 },
+        },
+        "Combat",
+        `You withdraw from ${enemy.name} and return to safer ground.`,
+      );
+    }
     case "END_COMBAT": {
       const revive = state.combat.result === "defeat";
       return {
@@ -485,6 +498,7 @@ export function useGameState() {
         dispatch({ type: "DAMAGE_ENEMY", damage, posture }),
       enemyTurn: () =>
         dispatch({ type: "ENEMY_TURN", damageRoll: Math.random(), intentRoll: Math.random() }),
+      retreat: () => dispatch({ type: "RETREAT" }),
       endCombat: () => dispatch({ type: "END_COMBAT" }),
     }),
     [],
