@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 
-export type AdaptiveClientMode =
-  | "mobile-portrait"
-  | "mobile-landscape"
-  | "tablet"
-  | "desktop";
+export type AdaptiveClientMode = "mobile-portrait" | "mobile-landscape" | "tablet" | "desktop";
 
 function detectMode(): AdaptiveClientMode {
   const width = window.innerWidth;
