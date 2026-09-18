@@ -8,7 +8,8 @@ function detectMode(): AdaptiveClientMode {
   const coarse = window.matchMedia("(pointer: coarse)").matches;
   const hoverless = window.matchMedia("(hover: none)").matches;
 
-  if ((coarse || hoverless) && width <= 932) {
+  const phoneSized = width <= 600 || (height <= 500 && width <= 932);
+  if (phoneSized || ((coarse || hoverless) && width <= 932)) {
     return height >= width ? "mobile-portrait" : "mobile-landscape";
   }
   if (width <= 1180 || ((coarse || hoverless) && width <= 1366)) return "tablet";

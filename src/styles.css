@@ -2020,7 +2020,7 @@
   display: none;
 }
 [data-client-mode="mobile-landscape"] .world-stage {
-  inset-top: calc(env(safe-area-inset-top) + 58px);
+  top: calc(env(safe-area-inset-top) + 58px);
 }
 [data-client-mode="mobile-landscape"] .mobile-controls {
   left: auto;
