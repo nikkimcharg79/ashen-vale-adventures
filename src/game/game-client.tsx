@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { useAdaptiveClient } from "@/hooks/use-adaptive-client";
 import moonlitRidge from "@/assets/moonlit-ridge.jpg";
 import lanternDistrict from "@/assets/lantern-district.jpg";
 import itemAtlas from "@/assets/item-atlas.jpg";
@@ -66,9 +67,10 @@ const skillArt: Record<string, string> = {
   explore: "skill-art-7",
 };
 
-type Overlay = "character" | "adventure" | "combat" | "hub" | "chronicle" | null;
+type Overlay = "character" | "bag" | "adventure" | "combat" | "hub" | "chronicle" | "ledger" | null;
 
 export function GameClient() {
+  const { mode, isMobile } = useAdaptiveClient();
   const { state, actions, bagCount, equippedItem, weaponPosture } = useGameState();
   const {
     character,
@@ -87,6 +89,7 @@ export function GameClient() {
   const [chatInput, setChatInput] = useState("");
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [feedCollapsed, setFeedCollapsed] = useState(false);
+  const [npcInteraction, setNpcInteraction] = useState<string | null>(null);
 
   const weapon = equippedItem("weapon");
   const armor = equippedItem("armor");
@@ -121,6 +124,8 @@ export function GameClient() {
         ? []
         : logs.filter((log) => log.channel === chatTab);
   const xpPercent = Math.min(100, Math.floor((xp / maxXp) * 100));
+  const combatLogs = logs.filter((log) => log.channel === "Combat");
+  const latestCombatLog = combatLogs.at(-1);
 
   const startCombat = (index?: number) => {
     const base = enemies[index ?? Math.floor(Math.random() * enemies.length)] ?? enemies[0]!;
@@ -295,6 +300,17 @@ export function GameClient() {
     return () => window.clearInterval(timer);
   }, [inHub, actions]);
 
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (npcInteraction) setNpcInteraction(null);
+      else if (selected) setSelected(null);
+      else setOverlay(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [npcInteraction, selected]);
+
   const panelTitle = (title: string, icon?: ReactNode, controls?: ReactNode) => (
     <div className="panel-title">
       <span className="panel-title-emblem">{icon}</span>
@@ -304,162 +320,169 @@ export function GameClient() {
     </div>
   );
 
-  const CharacterPanel = () => (
+  const CharacterPanel = ({ section = "all" }: { section?: "all" | "character" | "bag" }) => (
     <aside className="character-panel game-panel">
-      <section className="player-card">
-        <div className="portrait">
-          <img src={image} alt={`${character.name} portrait`} />
-          <span className="level-medallion">{character.level}</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="player-name">{character.name}</div>
-          <div className="player-class">
-            Lv. {character.level} {character.classTitle}
+      {section !== "bag" && (
+        <section className="player-card">
+          <div className="portrait">
+            <img src={image} alt={`${character.name} portrait`} />
+            <span className="level-medallion">{character.level}</span>
           </div>
-          <Meter value={hp} max={maxHp} kind="health" label={`${hp}/${maxHp}`} />
-          <Meter value={mp} max={maxMp} kind="mana" label={`${mp}/${maxMp}`} />
-        </div>
-      </section>
-      <section className="equipment-section">
-        {panelTitle("Equipment", "❖", <span className="panel-close">×</span>)}
-        <div className="equipment-body">
-          <div className="equip-slots left-slots">
-            <EquipSlotView
-              itemId={equipment.weapon ?? undefined}
-              icon="⚔"
-              active={Boolean(equipment.weapon)}
-              label={weapon?.name ?? "Weapon — empty"}
-            />
-            <EquipSlotView
-              itemId={equipment.armor ?? undefined}
-              icon="♜"
-              active={Boolean(equipment.armor)}
-              label={armor?.name ?? "Armor — empty"}
-            />
-            <EquipSlotView icon="♧" active={Boolean(equipment.gloves)} label="Gloves — empty" />
-            <EquipSlotView icon="♙" label="Greaves — empty" />
-            <EquipSlotView
-              itemId={equipment.boots ?? undefined}
-              icon="♞"
-              active={Boolean(equipment.boots)}
-              label={equippedItem("boots")?.name ?? "Boots — empty"}
-            />
+          <div className="min-w-0 flex-1">
+            <div className="player-name">{character.name}</div>
+            <div className="player-class">
+              Lv. {character.level} {character.classTitle}
+            </div>
+            <Meter value={hp} max={maxHp} kind="health" label={`${hp}/${maxHp}`} />
+            <Meter value={mp} max={maxMp} kind="mana" label={`${mp}/${maxMp}`} />
           </div>
-          <img
-            className="equipment-character"
-            src={image}
-            alt={`${character.name} equipped with ${weapon?.name ?? "no weapon"}`}
-          />
-          <div className="equip-slots right-slots">
-            <EquipSlotView
-              itemId="necklace"
-              icon="◇"
-              active={Boolean(equipment.necklace)}
-              label="Necklace — empty"
+        </section>
+      )}
+      {section !== "bag" && (
+        <section className="equipment-section">
+          {panelTitle("Equipment", "❖", <span className="panel-close">×</span>)}
+          <div className="equipment-body">
+            <div className="equip-slots left-slots">
+              <EquipSlotView
+                itemId={equipment.weapon ?? undefined}
+                icon="⚔"
+                active={Boolean(equipment.weapon)}
+                label={weapon?.name ?? "Weapon — empty"}
+              />
+              <EquipSlotView
+                itemId={equipment.armor ?? undefined}
+                icon="♜"
+                active={Boolean(equipment.armor)}
+                label={armor?.name ?? "Armor — empty"}
+              />
+              <EquipSlotView icon="♧" active={Boolean(equipment.gloves)} label="Gloves — empty" />
+              <EquipSlotView icon="♙" label="Greaves — empty" />
+              <EquipSlotView
+                itemId={equipment.boots ?? undefined}
+                icon="♞"
+                active={Boolean(equipment.boots)}
+                label={equippedItem("boots")?.name ?? "Boots — empty"}
+              />
+            </div>
+            <img
+              className="equipment-character"
+              src={image}
+              alt={`${character.name} equipped with ${weapon?.name ?? "no weapon"}`}
             />
-            <EquipSlotView itemId="bracers" icon="◫" label="Bracers — empty" />
-            <EquipSlotView icon="◆" label="Relic — empty" />
-            <EquipSlotView icon="◈" active={Boolean(equipment.ring1)} label="Ring — empty" />
-            <EquipSlotView icon="◉" active={Boolean(equipment.ring2)} label="Ring — empty" />
+            <div className="equip-slots right-slots">
+              <EquipSlotView
+                itemId="necklace"
+                icon="◇"
+                active={Boolean(equipment.necklace)}
+                label="Necklace — empty"
+              />
+              <EquipSlotView itemId="bracers" icon="◫" label="Bracers — empty" />
+              <EquipSlotView icon="◆" label="Relic — empty" />
+              <EquipSlotView icon="◈" active={Boolean(equipment.ring1)} label="Ring — empty" />
+              <EquipSlotView icon="◉" active={Boolean(equipment.ring2)} label="Ring — empty" />
+            </div>
           </div>
-        </div>
-        {weapon && (
-          <p className="equip-tooltip">
-            <strong className={rarityClass[weapon.rarity]}>{weapon.name}</strong>
-            <span>{weapon.flavor ?? weapon.description}</span>
-            <span>
-              ATK +{weapon.attack ?? 0} · POSTURE +{weapon.posture ?? 0}
-              {weapon.crit ? ` · CRIT +${weapon.crit}%` : ""}
-            </span>
-          </p>
-        )}
-        <div className="stat-strip">
-          <span>
-            ATK <b>{attack}</b>
-          </span>
-          <span>
-            DEF <b>{defense}</b>
-          </span>
-          <span>
-            CRIT <b>{crit}%</b>
-          </span>
-        </div>
-      </section>
-      <section className="inventory-section">
-        {panelTitle("Inventory", "▣")}
-        <div className="inventory-tabs">
-          {inventoryTabs.map((tab) => (
-            <Button
-              key={tab.value}
-              variant="ghost"
-              className={category === tab.value ? "active" : ""}
-              onClick={() => setCategory(tab.value)}
-              title={tab.label}
-            >
-              <span>{tab.icon}</span>
-            </Button>
-          ))}
-        </div>
-        <div className="inventory-grid">
-          {inventoryCells.map((item, index) =>
-            item ? (
-              <Button
-                key={item.id}
-                variant="ghost"
-                className={`item-slot ${rarityClass[item.rarity]} ${selected?.id === item.id ? "selected" : ""}`}
-                onClick={() => setSelected(item)}
-                title={item.name}
-              >
-                <span
-                  className={`item-art ${itemArt[item.id] ?? "item-art-fallback"}`}
-                  style={{ backgroundImage: `url(${itemAtlas})` }}
-                >
-                  <i>{item.icon}</i>
-                </span>
-                {item.count > 1 && <small>{item.count}</small>}
-              </Button>
-            ) : (
-              <span className="item-slot empty" key={`empty-${index}`} />
-            ),
+          {weapon && (
+            <p className="equip-tooltip">
+              <strong className={rarityClass[weapon.rarity]}>{weapon.name}</strong>
+              <span>{weapon.flavor ?? weapon.description}</span>
+              <span>
+                ATK +{weapon.attack ?? 0} · POSTURE +{weapon.posture ?? 0}
+                {weapon.crit ? ` · CRIT +${weapon.crit}%` : ""}
+              </span>
+            </p>
           )}
-        </div>
-        {selected && (
-          <div className="item-detail">
-            <div>
-              <strong className={rarityClass[selected.rarity]}>{selected.name}</strong>
-              <small>
-                {selected.rarity} · {selected.category}
-              </small>
-            </div>
-            <p>{selected.description}</p>
-            {selected.flavor && <p className="italic opacity-80">{selected.flavor}</p>}
-            <div className="item-stats">
-              {selected.attack && <span>ATK +{selected.attack}</span>}
-              {selected.defense && <span>DEF +{selected.defense}</span>}
-              {selected.crit && <span>CRIT +{selected.crit}%</span>}
-              {selected.posture && <span>POSTURE +{selected.posture}</span>}
-            </div>
-            {selected.equipSlot && weapon && selected.equipSlot === "weapon" && (
-              <div className="item-stats compare">
-                <span>
-                  vs {weapon.name}: {(selected.attack ?? 0) - (weapon.attack ?? 0) >= 0 ? "+" : ""}
-                  {(selected.attack ?? 0) - (weapon.attack ?? 0)} ATK ·{" "}
-                  {(selected.posture ?? 0) - (weapon.posture ?? 0) >= 0 ? "+" : ""}
-                  {(selected.posture ?? 0) - (weapon.posture ?? 0)} POSTURE
-                </span>
-              </div>
-            )}
-            {(selected.equipSlot || selected.category === "Consumables") && (
-              <Button className="gold-button" onClick={() => interactItem(selected)}>
-                {selected.category === "Consumables" ? "Use" : "Equip"}
+          <div className="stat-strip">
+            <span>
+              ATK <b>{attack}</b>
+            </span>
+            <span>
+              DEF <b>{defense}</b>
+            </span>
+            <span>
+              CRIT <b>{crit}%</b>
+            </span>
+          </div>
+        </section>
+      )}
+      {section !== "character" && (
+        <section className="inventory-section">
+          {panelTitle("Inventory", "▣")}
+          <div className="inventory-tabs">
+            {inventoryTabs.map((tab) => (
+              <Button
+                key={tab.value}
+                variant="ghost"
+                className={category === tab.value ? "active" : ""}
+                onClick={() => setCategory(tab.value)}
+                title={tab.label}
+              >
+                <span>{tab.icon}</span>
               </Button>
+            ))}
+          </div>
+          <div className="inventory-grid">
+            {inventoryCells.map((item, index) =>
+              item ? (
+                <Button
+                  key={item.id}
+                  variant="ghost"
+                  className={`item-slot ${rarityClass[item.rarity]} ${selected?.id === item.id ? "selected" : ""}`}
+                  onClick={() => setSelected(item)}
+                  title={item.name}
+                >
+                  <span
+                    className={`item-art ${itemArt[item.id] ?? "item-art-fallback"}`}
+                    style={{ backgroundImage: `url(${itemAtlas})` }}
+                  >
+                    <i>{item.icon}</i>
+                  </span>
+                  {item.count > 1 && <small>{item.count}</small>}
+                </Button>
+              ) : (
+                <span className="item-slot empty" key={`empty-${index}`} />
+              ),
             )}
           </div>
-        )}
-        <div className="bag-count">
-          <span>▰</span> {bagCount}/{state.bagCapacity}
-        </div>
-      </section>
+          {selected && (
+            <div className="item-detail">
+              <div>
+                <strong className={rarityClass[selected.rarity]}>{selected.name}</strong>
+                <small>
+                  {selected.rarity} · {selected.category}
+                </small>
+              </div>
+              <p>{selected.description}</p>
+              {selected.flavor && <p className="italic opacity-80">{selected.flavor}</p>}
+              <div className="item-stats">
+                {selected.attack && <span>ATK +{selected.attack}</span>}
+                {selected.defense && <span>DEF +{selected.defense}</span>}
+                {selected.crit && <span>CRIT +{selected.crit}%</span>}
+                {selected.posture && <span>POSTURE +{selected.posture}</span>}
+              </div>
+              {selected.equipSlot && weapon && selected.equipSlot === "weapon" && (
+                <div className="item-stats compare">
+                  <span>
+                    vs {weapon.name}:{" "}
+                    {(selected.attack ?? 0) - (weapon.attack ?? 0) >= 0 ? "+" : ""}
+                    {(selected.attack ?? 0) - (weapon.attack ?? 0)} ATK ·{" "}
+                    {(selected.posture ?? 0) - (weapon.posture ?? 0) >= 0 ? "+" : ""}
+                    {(selected.posture ?? 0) - (weapon.posture ?? 0)} POSTURE
+                  </span>
+                </div>
+              )}
+              {(selected.equipSlot || selected.category === "Consumables") && (
+                <Button className="gold-button" onClick={() => interactItem(selected)}>
+                  {selected.category === "Consumables" ? "Use" : "Equip"}
+                </Button>
+              )}
+            </div>
+          )}
+          <div className="bag-count">
+            <span>▰</span> {bagCount}/{state.bagCapacity}
+          </div>
+        </section>
+      )}
     </aside>
   );
 
@@ -604,6 +627,7 @@ export function GameClient() {
             const line = npc.lines[Math.floor(Math.random() * npc.lines.length)]!;
             actions.addLog("Nearby", line);
             actions.setNotice(line);
+            setNpcInteraction(line);
           }}
         >
           <span className="npc-icon">{npc.icon}</span>
@@ -721,7 +745,7 @@ export function GameClient() {
   );
 
   return (
-    <main className="game-shell">
+    <main className="game-shell" data-client-mode={mode}>
       <img
         className="world-background"
         src={backdrop}
@@ -771,6 +795,41 @@ export function GameClient() {
           <Button variant="ghost" size="icon" title="Menu" onClick={() => setOverlay("chronicle")}>
             ☰
           </Button>
+        </div>
+      </header>
+
+      <header className="mobile-identity" aria-label="Character status">
+        <div className="mobile-avatar">
+          <img src={image} alt="" />
+        </div>
+        <div className="mobile-vitals">
+          <div>
+            <strong>{character.name}</strong>
+            <span>
+              Lv. {character.level} {character.classTitle}
+            </span>
+          </div>
+          <Meter value={hp} max={maxHp} kind="health" label={`${hp}/${maxHp}`} />
+          <Meter value={mp} max={maxMp} kind="mana" label={`${mp}/${maxMp}`} />
+        </div>
+        <div className="mobile-resources">
+          <span>
+            <i className="coin-icon">◉</i>
+            {currencies.gold.toLocaleString()}
+          </span>
+          <span>
+            <i className="crystal-icon">♦</i>
+            {currencies.crystals.toLocaleString()}
+          </span>
+          <span>
+            <i className="bag-icon">▰</i>
+            {bagCount}/{state.bagCapacity}
+          </span>
+        </div>
+        <div className="mobile-location">
+          <span>✥</span>
+          <strong>{activeLocation.name}</strong>
+          <small>{activeLocation.region}</small>
         </div>
       </header>
 
@@ -869,28 +928,141 @@ export function GameClient() {
         )}
       </section>
 
-      <div className="mobile-controls">
-        <Button onClick={() => setOverlay("character")}>
-          <span>▰</span> Character
+      <section className="mobile-quest-preview" aria-label="Active quest">
+        <span>▤</span>
+        <div>
+          <strong>{activeQuest.title}</strong>
+          <small>{activeQuest.objective}</small>
+        </div>
+      </section>
+
+      {enemy && (
+        <section className="mobile-combat-dock" aria-label="Combat actions">
+          <Button
+            onClick={() => activateSkill("guard")}
+            disabled={mp < 8 || (cooldowns["guard"] ?? 0) > 0}
+            aria-label="Guard or Parry"
+          >
+            <span
+              className="skill-art skill-art-4"
+              style={{ backgroundImage: `url(${skillAtlas})` }}
+            />
+            <strong>Guard</strong>
+            <small>{cooldowns["guard"] ? `${cooldowns["guard"]}s` : "8 MP"}</small>
+          </Button>
+          <Button onClick={() => activateSkill("quick")} aria-label="Quick Slash">
+            <span
+              className="skill-art skill-art-0"
+              style={{ backgroundImage: `url(${skillAtlas})` }}
+            />
+            <strong>Quick</strong>
+            <small>0 MP</small>
+          </Button>
+          <Button
+            onClick={() => activateSkill("power")}
+            disabled={mp < 24 || (cooldowns["power"] ?? 0) > 0}
+            aria-label="Power Strike"
+          >
+            <span
+              className="skill-art skill-art-1"
+              style={{ backgroundImage: `url(${skillAtlas})` }}
+            />
+            <strong>Power</strong>
+            <small>{cooldowns["power"] ? `${cooldowns["power"]}s` : "24 MP"}</small>
+          </Button>
+          <Button
+            onClick={() => activateSkill("moonveil")}
+            disabled={mp < 36 || (cooldowns["moonveil"] ?? 0) > 0}
+            aria-label="Moonveil"
+          >
+            <span
+              className="skill-art skill-art-2"
+              style={{ backgroundImage: `url(${skillAtlas})` }}
+            />
+            <strong>Moonveil</strong>
+            <small>{cooldowns["moonveil"] ? `${cooldowns["moonveil"]}s` : "36 MP"}</small>
+          </Button>
+          <Button
+            onClick={() => {
+              const potion = inventory.find((item) => item.id === "health-potion");
+              if (potion) interactItem(potion);
+            }}
+            aria-label="Use Crimson Potion"
+          >
+            <span
+              className="skill-art skill-art-5"
+              style={{ backgroundImage: `url(${skillAtlas})` }}
+            />
+            <strong>Potion</strong>
+            <small>×{inventory.find((item) => item.id === "health-potion")?.count ?? 0}</small>
+          </Button>
+          <Button onClick={() => actions.retreat()} aria-label="Retreat from combat">
+            <span className="retreat-glyph">↶</span>
+            <strong>Retreat</strong>
+            <small>Withdraw</small>
+          </Button>
+        </section>
+      )}
+
+      {enemy && latestCombatLog && (
+        <Button variant="ghost" className="combat-ticker" onClick={() => setOverlay("ledger")}>
+          <span>⚔</span>
+          <span>{latestCombatLog.text}</span>
+          <strong>▴</strong>
         </Button>
-        <Button onClick={() => setOverlay("adventure")}>
-          <span>⌖</span> Adventure
-        </Button>
-        <Button onClick={() => setOverlay("combat")}>
-          <span>⚔</span> Combat
-        </Button>
-        <Button onClick={() => setOverlay("hub")}>
-          <span>介</span> Lantern
-        </Button>
-        <Button onClick={() => setOverlay("chronicle")}>
-          <span>▤</span> Chronicle
-        </Button>
-      </div>
-      {(overlay === "combat" || overlay === "hub" || overlay === "chronicle") && (
-        <div className="floating-drawer">
+      )}
+
+      <nav className="mobile-controls" aria-label="Primary game navigation">
+        {(
+          [
+            ["character", "♙", "Character"],
+            ["bag", "▰", "Bag"],
+            ["adventure", "⌖", "Adventure"],
+            ["combat", "⚔", "Combat"],
+            ["hub", "介", "Lantern Hub"],
+            ["chronicle", "▤", "Chronicle"],
+          ] as const
+        ).map(([target, icon, label]) => (
+          <Button
+            key={target}
+            variant="ghost"
+            aria-current={overlay === target ? "page" : undefined}
+            onClick={() => setOverlay(overlay === target ? null : target)}
+          >
+            <span>{icon}</span>
+            <small>{label}</small>
+          </Button>
+        ))}
+      </nav>
+      {isMobile && overlay && (
+        <div
+          className="floating-drawer mobile-bottom-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${overlay} panel`}
+        >
+          <div className="sheet-handle" aria-hidden="true" />
+          {overlay === "character" && <CharacterPanel section="character" />}
+          {overlay === "bag" && <CharacterPanel section="bag" />}
+          {overlay === "adventure" && <AdventurePanel />}
           {overlay === "combat" && <CombatPanel />}
           {overlay === "hub" && <LanternPanel />}
           {overlay === "chronicle" && <ChroniclePanel />}
+          {overlay === "ledger" && (
+            <aside className="battle-ledger game-panel">
+              {panelTitle("Battle Ledger", "⚔")}
+              <div className="battle-ledger-list">
+                {combatLogs
+                  .slice()
+                  .reverse()
+                  .map((log) => (
+                    <p key={log.id}>
+                      <span>[Combat]</span> {log.text}
+                    </p>
+                  ))}
+              </div>
+            </aside>
+          )}
           <Button
             className="drawer-close"
             variant="ghost"
@@ -902,11 +1074,66 @@ export function GameClient() {
           </Button>
         </div>
       )}
+      {!isMobile &&
+        (overlay === "combat" ||
+          overlay === "hub" ||
+          overlay === "chronicle" ||
+          overlay === "ledger") && (
+          <div className="floating-drawer">
+            {overlay === "combat" && <CombatPanel />}
+            {overlay === "hub" && <LanternPanel />}
+            {overlay === "chronicle" && <ChroniclePanel />}
+            {overlay === "ledger" && (
+              <aside className="battle-ledger game-panel">
+                {panelTitle("Battle Ledger", "⚔")}
+                <div className="battle-ledger-list">
+                  {combatLogs
+                    .slice()
+                    .reverse()
+                    .map((log) => (
+                      <p key={log.id}>
+                        <span>[Combat]</span> {log.text}
+                      </p>
+                    ))}
+                </div>
+              </aside>
+            )}
+            <Button
+              className="drawer-close"
+              variant="ghost"
+              size="icon"
+              aria-label="Close panel"
+              onClick={() => setOverlay(null)}
+            >
+              ×
+            </Button>
+          </div>
+        )}
+      {npcInteraction && (
+        <div className="detail-sheet" role="dialog" aria-modal="true" aria-label="Conversation">
+          <div className="sheet-handle" />
+          <strong>Nearby Conversation</strong>
+          <p>{npcInteraction}</p>
+          <Button className="gold-button" onClick={() => setNpcInteraction(null)}>
+            Continue
+          </Button>
+        </div>
+      )}
       {overlay && (
         <button
-          className={`drawer-scrim ${overlay === "character" || overlay === "adventure" ? "" : "always-on"}`}
+          className="drawer-scrim always-on"
           aria-label="Close panel"
           onClick={() => setOverlay(null)}
+        />
+      )}
+      {(selected || npcInteraction) && (
+        <button
+          className="drawer-scrim always-on detail-scrim"
+          aria-label="Close details"
+          onClick={() => {
+            setSelected(null);
+            setNpcInteraction(null);
+          }}
         />
       )}
 

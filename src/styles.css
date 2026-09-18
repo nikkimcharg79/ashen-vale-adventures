@@ -144,6 +144,7 @@
     color: var(--color-foreground);
     margin: 0;
     overflow: hidden;
+    min-height: 100dvh;
     font-family: var(--font-body);
   }
 
@@ -176,11 +177,20 @@
 .game-shell {
   position: relative;
   isolation: isolate;
-  height: 100svh;
+  height: 100dvh;
   min-height: 640px;
   overflow: hidden;
   color: var(--foreground);
   background: var(--background);
+}
+
+.mobile-identity,
+.mobile-quest-preview,
+.mobile-combat-dock,
+.combat-ticker,
+.detail-sheet,
+.sheet-handle {
+  display: none;
 }
 
 .world-background {
@@ -1108,7 +1118,7 @@
   animation: scale-in 0.18s ease-out;
 }
 .floating-drawer > .game-panel {
-  max-height: min(78svh, 640px);
+  max-height: min(78dvh, 640px);
   overflow-y: auto;
 }
 .floating-drawer .drawer-close {
@@ -1563,6 +1573,501 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* v2.3 adaptive client — phone is a composed game viewport, not compressed desktop. */
+.battle-ledger-list {
+  max-height: min(65dvh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.battle-ledger-list p {
+  margin: 0 0 8px;
+  color: var(--parchment);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.battle-ledger-list span {
+  color: var(--gold-bright);
+}
+
+[data-client-mode="mobile-portrait"],
+[data-client-mode="mobile-landscape"] {
+  min-height: 0;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+[data-client-mode^="mobile-"] .topbar,
+[data-client-mode^="mobile-"] .desktop-left,
+[data-client-mode^="mobile-"] .desktop-right,
+[data-client-mode^="mobile-"] .utility-rail,
+[data-client-mode^="mobile-"] .chat,
+[data-client-mode^="mobile-"] .hotbar-wrap {
+  display: none;
+}
+
+[data-client-mode^="mobile-"] .mobile-identity {
+  position: absolute;
+  z-index: 45;
+  top: env(safe-area-inset-top);
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-rows: 50px 22px;
+  gap: 3px 8px;
+  padding: 5px 8px 4px;
+  border-bottom: 3px ridge var(--gold-dark);
+  background: linear-gradient(180deg, oklch(0.12 0.025 246 / 97%), oklch(0.045 0.012 250 / 92%));
+  box-shadow: 0 7px 18px oklch(0 0 0 / 65%);
+}
+.mobile-avatar {
+  grid-row: 1;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border: 3px ridge var(--gold-mid);
+  border-radius: 50%;
+  background: var(--lacquer-deep);
+}
+.mobile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 11%;
+}
+.mobile-vitals {
+  min-width: 0;
+}
+.mobile-vitals > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.mobile-vitals strong {
+  color: var(--parchment);
+  font: 13px var(--font-display);
+}
+.mobile-vitals span {
+  color: var(--muted-foreground);
+  font-size: 9px;
+  white-space: nowrap;
+}
+.mobile-vitals .meter {
+  height: 10px;
+  margin: 2px 0;
+}
+.mobile-vitals .meter span {
+  font-size: 7px;
+  line-height: 8px;
+}
+.mobile-resources {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  align-content: center;
+  gap: 3px 7px;
+}
+.mobile-resources span {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--parchment);
+  font-size: 10px;
+}
+.mobile-resources i {
+  width: 12px;
+  font-style: normal;
+  text-align: center;
+}
+.mobile-location {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 18px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  border-top: 1px solid color-mix(in oklab, var(--gold-dark) 70%, transparent);
+  color: var(--gold-bright);
+  font-size: 10px;
+}
+.mobile-location small {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-client-mode^="mobile-"] .world-stage {
+  inset: calc(env(safe-area-inset-top) + 76px) 0 calc(env(safe-area-inset-bottom) + 116px);
+  overflow: hidden;
+}
+[data-client-mode^="mobile-"] .world-character {
+  left: 50%;
+  bottom: -2%;
+  height: min(67dvh, 650px);
+  max-width: 92vw;
+  transform: translateX(-50%);
+  animation: none;
+}
+[data-client-mode^="mobile-"] .enemy-card {
+  top: 8px;
+  width: min(94vw, 360px);
+  padding: 8px;
+}
+[data-client-mode^="mobile-"] .enemy-card .meter {
+  height: 13px;
+}
+[data-client-mode^="mobile-"] .intent-tag {
+  padding: 5px 7px;
+  font-size: 10px;
+}
+
+[data-client-mode^="mobile-"] .mobile-controls {
+  position: absolute;
+  z-index: 55;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: env(safe-area-inset-bottom);
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0;
+  height: 62px;
+  padding: 3px 3px 4px;
+  border-top: 3px ridge var(--gold-dark);
+  background: linear-gradient(180deg, var(--lacquer-raised), var(--lacquer-deep));
+  box-shadow: 0 -7px 18px oklch(0 0 0 / 72%);
+}
+[data-client-mode^="mobile-"] .mobile-controls button {
+  min-width: 0;
+  min-height: 44px;
+  height: 54px;
+  padding: 3px 1px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 0;
+  border-right: 1px solid var(--gold-dark);
+  border-radius: 0;
+  background: transparent;
+  color: oklch(0.68 0.04 78);
+}
+[data-client-mode^="mobile-"] .mobile-controls button:last-child {
+  border-right: 0;
+}
+[data-client-mode^="mobile-"] .mobile-controls button[aria-current="page"] {
+  color: var(--gold-bright);
+  background: linear-gradient(180deg, oklch(0.3 0.065 63 / 85%), transparent);
+  box-shadow: inset 0 2px var(--gold-bright);
+}
+[data-client-mode^="mobile-"] .mobile-controls button > span {
+  font-size: 19px;
+  line-height: 22px;
+}
+[data-client-mode^="mobile-"] .mobile-controls button > small {
+  width: 100%;
+  overflow: hidden;
+  font: 8px var(--font-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-client-mode^="mobile-"] .mobile-quest-preview {
+  position: absolute;
+  z-index: 34;
+  left: 7px;
+  right: 7px;
+  bottom: calc(env(safe-area-inset-bottom) + 67px);
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 5px 9px;
+  border: 2px ridge var(--gold-dark);
+  background: oklch(0.055 0.014 248 / 90%);
+  box-shadow: 0 4px 12px oklch(0 0 0 / 60%);
+}
+.mobile-quest-preview > span {
+  color: var(--gold-bright);
+  font-size: 18px;
+}
+.mobile-quest-preview strong,
+.mobile-quest-preview small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobile-quest-preview strong {
+  color: var(--parchment);
+  font: 10px var(--font-display);
+}
+.mobile-quest-preview small {
+  color: var(--muted-foreground);
+  font-size: 9px;
+}
+
+[data-client-mode^="mobile-"] .mobile-combat-dock {
+  position: absolute;
+  z-index: 52;
+  left: 4px;
+  right: 4px;
+  bottom: calc(env(safe-area-inset-bottom) + 112px);
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+  padding: 5px;
+  border: 3px ridge var(--gold-mid);
+  background: linear-gradient(180deg, var(--lacquer-raised), var(--lacquer-deep));
+  box-shadow: var(--relief-shadow);
+}
+[data-client-mode^="mobile-"] .mobile-combat-dock button {
+  position: relative;
+  min-width: 0;
+  min-height: 58px;
+  height: 58px;
+  padding: 2px;
+  display: grid;
+  grid-template-rows: 34px 11px 9px;
+  justify-items: center;
+  gap: 0;
+  overflow: hidden;
+  border: 2px ridge var(--gold-dark);
+  border-radius: 0;
+  background: var(--lacquer-deep);
+}
+.mobile-combat-dock .skill-art {
+  width: 34px;
+  height: 34px;
+}
+.mobile-combat-dock strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--parchment);
+  font: 8px var(--font-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobile-combat-dock small {
+  color: var(--cyan-glow);
+  font-size: 7px;
+}
+.retreat-glyph {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--gold-bright);
+  font-size: 25px;
+}
+
+[data-client-mode^="mobile-"] .combat-ticker {
+  position: absolute;
+  z-index: 51;
+  left: 7px;
+  right: 7px;
+  bottom: calc(env(safe-area-inset-bottom) + 181px);
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 16px;
+  gap: 5px;
+  min-height: 44px;
+  height: 44px;
+  padding: 4px 8px;
+  border: 2px ridge var(--gold-dark);
+  border-radius: 0;
+  background: oklch(0.055 0.014 248 / 93%);
+  color: var(--parchment);
+  font-size: 10px;
+  text-align: left;
+}
+.combat-ticker > span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-client-mode^="mobile-"] .mobile-quest-preview:has(~ .mobile-combat-dock) {
+  display: none;
+}
+
+[data-client-mode^="mobile-"] .mobile-bottom-sheet,
+[data-client-mode^="mobile-"] .detail-sheet {
+  position: fixed;
+  z-index: 90;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-height: calc(88dvh - env(safe-area-inset-top));
+  padding-top: 19px;
+  padding-bottom: env(safe-area-inset-bottom);
+  transform: none;
+  border-top: 3px ridge var(--gold-mid);
+  background: var(--lacquer-deep);
+  box-shadow: 0 -16px 40px oklch(0 0 0 / 82%);
+  animation: sheet-rise 0.22s ease-out;
+}
+[data-client-mode^="mobile-"] .mobile-bottom-sheet > .game-panel,
+[data-client-mode^="mobile-"] .mobile-bottom-sheet > .adventure-panel {
+  max-height: calc(88dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 19px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+[data-client-mode^="mobile-"] .mobile-bottom-sheet .character-panel {
+  display: block;
+  height: auto;
+}
+[data-client-mode^="mobile-"] .mobile-bottom-sheet .equipment-section,
+[data-client-mode^="mobile-"] .mobile-bottom-sheet .inventory-section {
+  min-height: 430px;
+}
+[data-client-mode^="mobile-"] .mobile-bottom-sheet .equipment-body {
+  height: 345px;
+}
+[data-client-mode^="mobile-"] .mobile-bottom-sheet .inventory-grid {
+  overflow: visible;
+}
+[data-client-mode^="mobile-"] .sheet-handle {
+  position: absolute;
+  z-index: 3;
+  top: 7px;
+  left: 50%;
+  display: block;
+  width: 48px;
+  height: 5px;
+  transform: translateX(-50%);
+  border: 1px solid var(--gold-dark);
+  border-radius: 4px;
+  background: var(--gold-mid);
+}
+[data-client-mode^="mobile-"] .mobile-bottom-sheet .drawer-close {
+  display: inline-flex;
+  top: 23px;
+  right: 7px;
+  min-width: 44px;
+  min-height: 44px;
+}
+[data-client-mode^="mobile-"] .drawer-scrim.always-on {
+  z-index: 80;
+}
+
+[data-client-mode^="mobile-"] .item-detail {
+  position: fixed;
+  z-index: 101;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 72dvh;
+  overflow-y: auto;
+  padding: 27px 16px calc(18px + env(safe-area-inset-bottom));
+  border-width: 3px 0 0;
+  -webkit-overflow-scrolling: touch;
+}
+[data-client-mode^="mobile-"] .item-detail::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 48px;
+  height: 5px;
+  transform: translateX(-50%);
+  border-radius: 4px;
+  background: var(--gold-mid);
+}
+.detail-sheet {
+  padding: 30px 16px calc(18px + env(safe-area-inset-bottom));
+  color: var(--parchment);
+}
+.detail-sheet strong {
+  font: 14px var(--font-display);
+  color: var(--gold-bright);
+}
+.detail-sheet p {
+  line-height: 1.45;
+}
+.detail-sheet .gold-button {
+  min-height: 44px;
+}
+.detail-scrim {
+  z-index: 95 !important;
+}
+
+@keyframes sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+[data-client-mode="mobile-landscape"] .mobile-identity {
+  right: auto;
+  width: min(46vw, 400px);
+  grid-template-rows: 50px;
+}
+[data-client-mode="mobile-landscape"] .mobile-location {
+  display: none;
+}
+[data-client-mode="mobile-landscape"] .world-stage {
+  top: calc(env(safe-area-inset-top) + 58px);
+}
+[data-client-mode="mobile-landscape"] .mobile-controls {
+  left: auto;
+  width: min(54vw, 480px);
+}
+[data-client-mode="mobile-landscape"] .mobile-combat-dock {
+  left: auto;
+  width: min(65vw, 600px);
+}
+[data-client-mode="mobile-landscape"] .combat-ticker {
+  left: auto;
+  width: min(65vw, 600px);
+}
+[data-client-mode="mobile-landscape"] .mobile-quest-preview {
+  right: auto;
+  width: min(42vw, 370px);
+}
+
+[data-client-mode="tablet"] .game-shell {
+  height: 100dvh;
+}
+[data-client-mode="tablet"] .desktop-left {
+  width: 268px;
+}
+[data-client-mode="tablet"] .desktop-right {
+  width: 276px;
+  right: 8px;
+}
+[data-client-mode="tablet"] .world-stage {
+  left: 268px;
+  right: 276px;
+}
+[data-client-mode="tablet"] .hotbar-wrap {
+  width: 390px;
+  min-width: 390px;
+}
+
+@media (pointer: coarse) {
+  button,
+  input,
+  [role="button"] {
+    min-height: 44px;
+  }
+  .item-slot,
+  .equip-slot {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
